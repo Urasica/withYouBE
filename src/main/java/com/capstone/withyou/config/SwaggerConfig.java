@@ -16,7 +16,7 @@ public class SwaggerConfig implements WebMvcConfigurer {
                 .info(new Info()
                         .title("WithU 캡스톤 프로젝트")
                         .description("")
-                        .version("1.0.0"));
+                        .version("0.0.1"));
     }
 
     @Override
