@@ -1,8 +1,8 @@
 package com.capstone.withyou.controller;
 
 import com.capstone.withyou.Manager.AccessTokenManager;
-import com.capstone.withyou.dao.StockRankingRise;
-import com.capstone.withyou.repository.StockRankingRiseRepository;
+import com.capstone.withyou.dao.StockRankDomesticRise;
+import com.capstone.withyou.repository.StockRankDomesticRiseRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,12 +13,13 @@ import java.util.List;
 @RestController("/api/stock")
 public class StockRankListController {
     private final AccessTokenManager accessTokenManager;
-    private final StockRankingRiseRepository stockRankingRiseRepository;
+    private final StockRankDomesticRiseRepository stockRankDomesticRiseRepository;
 
     @Autowired
-    public StockRankListController(AccessTokenManager accessTokenManager, StockRankingRiseRepository stockRankingRiseRepository) {
+    public StockRankListController(AccessTokenManager accessTokenManager,
+                                   StockRankDomesticRiseRepository stockRankDomesticRiseRepository) {
         this.accessTokenManager = accessTokenManager;
-        this.stockRankingRiseRepository = stockRankingRiseRepository;
+        this.stockRankDomesticRiseRepository = stockRankDomesticRiseRepository;
     }
 
     @GetMapping("/test")
@@ -28,8 +29,8 @@ public class StockRankListController {
     }
 
     @GetMapping("/rise")
-    public ResponseEntity<List<StockRankingRise>> getAllRisingStocks() {
-        List<StockRankingRise> stocks = stockRankingRiseRepository.findAll();
+    public ResponseEntity<List<StockRankDomesticRise>> getAllRisingStocks() {
+        List<StockRankDomesticRise> stocks = stockRankDomesticRiseRepository.findAll();
         return ResponseEntity.ok(stocks);
     }
 }

@@ -1,7 +1,6 @@
 package com.capstone.withyou.dao;
 
 import jakarta.persistence.*;
-import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -9,10 +8,15 @@ import java.math.BigDecimal;
 
 @Setter
 @Getter
-@Entity
-public class StockRankingRise {
+@MappedSuperclass
+@IdClass(StockRankId.class)  // 복합키 사용
+public abstract class StockRank {
     @Id
     private String stockCode;       // 종목 코드
+    @Id
+    @Enumerated(EnumType.STRING)
+    private StockPeriod period;     // 기간 (1일, 1주, 1달, 1년)
+
     private Integer rank;           // 순위
     private String stockName;       // 종목명
     private Integer currentPrice;   // 현재가
