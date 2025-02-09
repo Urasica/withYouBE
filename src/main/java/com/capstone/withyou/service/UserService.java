@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 
 @Service
@@ -26,6 +27,7 @@ public class UserService {
         User user = new User();
         user.setUserId(userId);
         user.setPassword(encodedPassword);
+        user.setBalance(BigDecimal.ZERO);
         userRepository.save(user);
     }
 
