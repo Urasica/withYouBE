@@ -62,7 +62,6 @@ public class StockRankingService {
         } catch (Exception e) {
             e.printStackTrace();
         }
-
     }
 
     /**
