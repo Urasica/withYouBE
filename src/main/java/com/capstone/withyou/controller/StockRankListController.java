@@ -197,8 +197,8 @@ public class StockRankListController {
 
     @GetMapping("/trade-volume")
     @Operation(
-            summary = "주식 하락율 순위 조회",
-            description = "일간, 주간, 월간, 년간 기준으로 주식 하락율 순위를 조회합니다.",
+            summary = "주식 거래량 순위 조회",
+            description = "주식 거래량 순위를 조회합니다.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "성공적으로 순위를 조회함",
                             content = @Content(mediaType = "application/json",
