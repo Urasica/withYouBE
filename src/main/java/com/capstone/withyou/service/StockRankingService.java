@@ -35,7 +35,7 @@ public class StockRankingService {
 
 
     private final AccessTokenManager tokenManager;
-    private static final int API_CALL_INTERVAL = 500;
+    private static final int API_CALL_INTERVAL = 1000;
 
 
     public StockRankingService(StockRankDomesticRiseRepository stockRankDomesticRiseRepository,
@@ -209,7 +209,6 @@ public class StockRankingService {
         ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
 
         JsonNode responseBody = response.getBody();
-        System.out.println(responseBody);
 
         if (responseBody != null) {
             JsonNode rankings = responseBody.get("output");
@@ -274,7 +273,6 @@ public class StockRankingService {
         ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
 
         JsonNode responseBody = response.getBody();
-        System.out.println(responseBody);
 
         if (responseBody != null) {
             JsonNode rankings = responseBody.get("output2");
@@ -289,7 +287,7 @@ public class StockRankingService {
                     stock.setStockNameEng(ranking.get("ename").asText());
                     stock.setCurrentPrice(new BigDecimal(ranking.get("last").asText()).doubleValue());
                     stock.setChangePrice(new BigDecimal(ranking.get("diff").asText()).doubleValue());
-                    stock.setChangeRate(new BigDecimal(ranking.get("rate").asText()));
+                    stock.setChangeRate(new BigDecimal(ranking.get("rate").asText().trim().replaceAll("\\s+", "")));
                     stock.setTradeVolume(ranking.get("tvol").asLong());
                     stock.setExcd(ranking.get("excd").asText());
                     stock.setPeriod(period);
@@ -358,7 +356,7 @@ public class StockRankingService {
                     stock.setStockNameEng(ranking.get("ename").asText());
                     stock.setCurrentPrice(new BigDecimal(ranking.get("last").asText()).doubleValue());
                     stock.setChangePrice(new BigDecimal(ranking.get("diff").asText()).doubleValue());
-                    stock.setChangeRate(new BigDecimal(ranking.get("rate").asText()));
+                    stock.setChangeRate(new BigDecimal(ranking.get("rate").asText().trim().replaceAll("\\s+", "")));
                     stock.setTradeVolume(ranking.get("tvol").asLong());
                     stock.setExcd(ranking.get("excd").asText());
 
