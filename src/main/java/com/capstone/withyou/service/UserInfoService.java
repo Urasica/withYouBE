@@ -110,6 +110,7 @@ public class UserInfoService {
         dto.setStockName(userStock.getStockName());
         dto.setQuantity(userStock.getQuantity());
         dto.setPurchasePrice(userStock.getPurchasePrice());
+        // 실시간 주식 정보 설정(현재 주가, 총 금액, 손익 금액, 수익률)
         return dto;
     }
 }
