@@ -1,7 +1,8 @@
 package com.capstone.withyou.controller;
 
 import com.capstone.withyou.dao.User;
-import com.capstone.withyou.dto.LoginDTO;
+import com.capstone.withyou.dto.LoginRequestDTO;
+import com.capstone.withyou.dto.LoginResponseDTO;
 import com.capstone.withyou.dto.RegisterDTO;
 import com.capstone.withyou.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,27 +39,27 @@ public class LoginAndSignUpController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<String> login(@RequestBody LoginDTO loginDTO) {
+    public ResponseEntity<LoginResponseDTO> login(@RequestBody LoginRequestDTO loginRequestDTO) {
         // 사용자 검증
-        if (!userService.verifyUser(loginDTO.getUserId())) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("UserId does not exist");
+        if (!userService.verifyUser(loginRequestDTO.getUserId())) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
         }
 
         // 사용자 가져오기
-        User loginUser = userService.getUser(loginDTO.getUserId())
+        User loginUser = userService.getUser(loginRequestDTO.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // 비밀번호 검증
-        if (!userService.checkPassword(loginUser, loginDTO.getPassword())) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+        if (!userService.checkPassword(loginUser, loginRequestDTO.getPassword())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(null);
         }
 
-        LoginDTO response = new LoginDTO();
+        // 응답 객체 생성
+        LoginResponseDTO response = new LoginResponseDTO();
         response.setUserId(loginUser.getUserId());
         response.setBalance(loginUser.getBalance());
-        response.setPassword(null);
 
-        return ResponseEntity.status(HttpStatus.OK).body(response.toString());
+        return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
 }

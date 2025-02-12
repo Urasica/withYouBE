@@ -11,8 +11,7 @@ import java.math.BigDecimal;
 @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class LoginDTO {
+public class LoginRequestDTO {
     private String userId;
     private String password;
-    private BigDecimal balance;
 }
