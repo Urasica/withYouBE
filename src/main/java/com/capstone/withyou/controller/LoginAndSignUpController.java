@@ -53,7 +53,12 @@ public class LoginAndSignUpController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
         }
 
-        return ResponseEntity.status(HttpStatus.OK).body("Login successfully");
+        LoginDTO response = new LoginDTO();
+        response.setUserId(loginUser.getUserId());
+        response.setBalance(loginUser.getBalance());
+        response.setPassword(null);
+
+        return ResponseEntity.status(HttpStatus.OK).body(response.toString());
     }
 
 }
