@@ -14,6 +14,7 @@ public class UserStock {
     private Long id;
 
     private String stockCode;
+    private String stockName;
     private int quantity;
     private BigDecimal purchasePrice;
 

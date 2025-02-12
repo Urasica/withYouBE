@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class UserStockDTO {
     private String stockCode;
+    private String stockName;
     private BigDecimal currentPrice; // 현재 주가
     private BigDecimal purchasePrice; // 매입 주가
     private BigDecimal profitAmount; //손익 금액
