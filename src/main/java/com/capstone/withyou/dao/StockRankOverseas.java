@@ -7,20 +7,25 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 
-@Entity
-@Table(name = "stock_rank_overseas_trade")
 @Getter
 @Setter
-public class StockRankOverseasTrade{
+@MappedSuperclass
+@IdClass(StockRankId.class)
+public abstract class StockRankOverseas {
     @Id
     @Schema(description = "종목 코드 (ex: GLDD)")
-    private String stockCode;        // 종목 코드
+    private String stockCode;   // 종목 코드
 
-    @Schema(description = "거래소 코드 (ex: NAS = 나스닥)")
-    private String excd;             // 거래소 코드
+    @Id
+    @Enumerated(EnumType.STRING)
+    @Schema(description = "기간")
+    private StockPeriod period;     // 기간 (1일, 1주, 1달, 1년)
 
     @Schema(description = "순위 (1위부터 시작)")
     private Integer rank;            // 순위
+
+    @Schema(description = "거래소 코드 (ex: NAS = 나스닥)")
+    private String excd;             // 거래소 코드
 
     @Schema(description = "종목명 한글")
     private String stockName;        // 종목명

@@ -9,5 +9,5 @@ import lombok.Setter;
 @Table(name = "stock_rank_overseas_rise")
 @Getter
 @Setter
-public class StockRankOverseasRise extends StockRank {
+public class StockRankOverseasRise extends StockRankOverseas {
 }

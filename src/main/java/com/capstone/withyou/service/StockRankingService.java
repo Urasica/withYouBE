@@ -2,11 +2,8 @@ package com.capstone.withyou.service;
 
 import com.capstone.withyou.Manager.AccessTokenManager;
 import com.capstone.withyou.dao.*;
-import com.capstone.withyou.repository.StockRankDomesticFallRepository;
-import com.capstone.withyou.repository.StockRankDomesticRiseRepository;
-import com.capstone.withyou.repository.StockRankDomesticTradeRepository;
+import com.capstone.withyou.repository.*;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
@@ -15,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -31,41 +29,71 @@ public class StockRankingService {
     private final StockRankDomesticRiseRepository stockRankDomesticRiseRepository;
     private final StockRankDomesticFallRepository stockRankDomesticFallRepository;
     private final StockRankDomesticTradeRepository stockRankDomesticTradeRepository;
+    private final StockRankOverseasRiseRepository stockRankOverseasRiseRepository;
+    private final StockRankOverseasFallRepository stockRankOverseasFallRepository;
+    private final StockRankOverseasTradeRepository stockRankOverseasTradeRepository;
 
 
     private final AccessTokenManager tokenManager;
     private static final int API_CALL_INTERVAL = 500;
 
+
     public StockRankingService(StockRankDomesticRiseRepository stockRankDomesticRiseRepository,
                                AccessTokenManager tokenManager,
                                StockRankDomesticFallRepository stockRankDomesticFallRepository,
-                               StockRankDomesticTradeRepository stockRankDomesticTradeRepository) {
+                               StockRankDomesticTradeRepository stockRankDomesticTradeRepository,
+                               StockRankOverseasRiseRepository stockRankOverseasRiseRepository,
+                               StockRankOverseasFallRepository stockRankOverseasFallRepository,
+                               StockRankOverseasTradeRepository stockRankOverseasTradeRepository) {
         this.stockRankDomesticRiseRepository = stockRankDomesticRiseRepository;
         this.tokenManager = tokenManager;
         this.stockRankDomesticFallRepository = stockRankDomesticFallRepository;
         this.stockRankDomesticTradeRepository = stockRankDomesticTradeRepository;
+        this.stockRankOverseasRiseRepository = stockRankOverseasRiseRepository;
+        this.stockRankOverseasFallRepository = stockRankOverseasFallRepository;
+        this.stockRankOverseasTradeRepository = stockRankOverseasTradeRepository;
     }
 
-
-    @Scheduled(fixedRate = 6000000)
     @Transactional
-    public void fetchAndSaveStockRankings() {
+    public void fetchAndSaveDailyStockRankings() {
         try {
-            for (StockPeriod period : StockPeriod.values()) {
-                DomesticStockRankingChangeRate(0, period);
-                TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL); // 1초 대기
-                DomesticStockRankingChangeRate(1, period);
-                TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL); // 1초 대기
-            }
+            DomesticStockRankingChangeRate(0, StockPeriod.DAILY);
+            TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
+            DomesticStockRankingChangeRate(1, StockPeriod.DAILY);
+            TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
             DomesticStockRankingTradeVolume();
             TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
+
+            OverseasStockRanking(0, StockPeriod.DAILY);
+            TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
+            OverseasStockRanking(1, StockPeriod.DAILY);
+            TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
+            OverseasStockTradeRanking();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @Transactional
+    public void fetchAndSaveLongTermStockRankings() {
+        try {
+            for (StockPeriod period : Arrays.asList(StockPeriod.WEEKLY, StockPeriod.MONTHLY, StockPeriod.YEARLY)) {
+                DomesticStockRankingChangeRate(0, period);
+                TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
+                DomesticStockRankingChangeRate(1, period);
+                TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
+                OverseasStockRanking(0, period);
+                TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
+                OverseasStockRanking(1, period);
+                TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
     /**
-     * 국내 주식 등락률 순위 (상승률:0, 하락률:1)
+     * 국내 주식 등락률 순위 (0:상승률, 1:하락률)
      */
     @Transactional
     public void DomesticStockRankingChangeRate(int rankSortCode, StockPeriod period) {
@@ -120,7 +148,6 @@ public class StockRankingService {
 
                     stockList.add(StockRank);
                 }
-                System.out.println(stockList);
 
                 // **기간별 기존 데이터만 삭제 후 저장**
                 if (rankSortCode == 0) {  // 상승률 저장
@@ -213,5 +240,134 @@ public class StockRankingService {
         }
     }
 
-    public void OverseasStockRanking() {}
+    /**
+     * 해외 주식 등락률 순위 (0:하락률, 1:상승률)
+     */
+    @Transactional
+    public void OverseasStockRanking(int rankSortCode, StockPeriod period) {
+        int dayCode = switch (period) {
+            case DAILY -> 0;   // 당일
+            case WEEKLY -> 3;  // 5일
+            case MONTHLY -> 6; // 30일
+            case YEARLY -> 9;  // 1년
+        };
+
+        String url = "https://openapi.koreainvestment.com:9443/uapi/overseas-stock/v1/ranking/updown-rate"
+                + "?AUTH="
+                + "&EXCD=NAS"
+                + "&GUBN=" + rankSortCode /*순위정렬 구분코드 1:상승율순 0:하락율순*/
+                + "&NDAY=" + dayCode /*누적일*/
+                + "&VOL_RANG=1"
+                + "&KEYB=";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
+        headers.set("appkey", appKey);
+        headers.set("appsecret", appSecret);
+        headers.set("tr_id", "HHDFS76290000");
+        headers.set("tr_cont", "");
+        headers.set("custtype", "P");
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
+
+        JsonNode responseBody = response.getBody();
+        System.out.println(responseBody);
+
+        if (responseBody != null) {
+            JsonNode rankings = responseBody.get("output2");
+
+            if (rankings != null) {
+                List<StockRankOverseas> stockList = new ArrayList<>();
+                for (JsonNode ranking : rankings) {
+                    StockRankOverseas stock = rankSortCode==0 ? new StockRankOverseasFall() : new StockRankOverseasRise();
+                    stock.setStockCode(ranking.get("symb").asText());
+                    stock.setRank(ranking.get("rank").asInt());
+                    stock.setStockName(ranking.get("name").asText());
+                    stock.setStockNameEng(ranking.get("ename").asText());
+                    stock.setCurrentPrice(new BigDecimal(ranking.get("last").asText()).doubleValue());
+                    stock.setChangePrice(new BigDecimal(ranking.get("diff").asText()).doubleValue());
+                    stock.setChangeRate(new BigDecimal(ranking.get("rate").asText()));
+                    stock.setTradeVolume(ranking.get("tvol").asLong());
+                    stock.setExcd(ranking.get("excd").asText());
+                    stock.setPeriod(period);
+
+                    stockList.add(stock);
+                }
+
+                if(rankSortCode == 0) { // 하락률 저장
+                    List<StockRankOverseasFall> list = stockList.stream()
+                            .map(stock -> (StockRankOverseasFall) stock)
+                            .toList();
+
+                    stockRankOverseasFallRepository.deleteByPeriod(period);
+                    stockRankOverseasFallRepository.saveAll(list);
+                } else { // 상승률 저장
+                    List<StockRankOverseasRise> list = stockList.stream()
+                            .map(stock -> (StockRankOverseasRise) stock)
+                            .toList();
+
+                    stockRankOverseasRiseRepository.deleteByPeriod(period);
+                    stockRankOverseasRiseRepository.saveAll(list);
+                }
+            }
+        }
+    }
+
+    /**
+     * 해외 주식 거래량 순위
+     */
+    @Transactional
+    public void OverseasStockTradeRanking() {
+        String url = "https://openapi.koreainvestment.com:9443/uapi/overseas-stock/v1/ranking/updown-rate"
+                + "?AUTH="
+                + "&EXCD=NAS"
+                + "&NDAY=0"
+                + "&PRC1="
+                + "&PRC2="
+                + "&VOL_RANG=1"
+                + "&KEYB=";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
+        headers.set("appkey", appKey);
+        headers.set("appsecret", appSecret);
+        headers.set("tr_id", "HHDFS76310010");
+        headers.set("tr_cont", "");
+        headers.set("custtype", "P");
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+        RestTemplate restTemplate = new RestTemplate();
+        ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
+
+        JsonNode responseBody = response.getBody();
+
+        if (responseBody != null) {
+            JsonNode rankings = responseBody.get("output2");
+
+            if (rankings != null) {
+                List<StockRankOverseasTrade> stockList = new ArrayList<>();
+                for (JsonNode ranking : rankings) {
+                    StockRankOverseasTrade stock = new StockRankOverseasTrade();
+                    stock.setStockCode(ranking.get("symb").asText());
+                    stock.setRank(ranking.get("rank").asInt());
+                    stock.setStockName(ranking.get("name").asText());
+                    stock.setStockNameEng(ranking.get("ename").asText());
+                    stock.setCurrentPrice(new BigDecimal(ranking.get("last").asText()).doubleValue());
+                    stock.setChangePrice(new BigDecimal(ranking.get("diff").asText()).doubleValue());
+                    stock.setChangeRate(new BigDecimal(ranking.get("rate").asText()));
+                    stock.setTradeVolume(ranking.get("tvol").asLong());
+                    stock.setExcd(ranking.get("excd").asText());
+
+                    stockList.add(stock);
+                }
+
+                stockRankOverseasTradeRepository.deleteAll();
+                stockRankOverseasTradeRepository.saveAll(stockList);
+            }
+        }
+    }
 }

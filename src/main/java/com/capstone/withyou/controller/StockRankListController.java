@@ -1,12 +1,7 @@
 package com.capstone.withyou.controller;
 
-import com.capstone.withyou.dao.StockPeriod;
-import com.capstone.withyou.dao.StockRankDomesticFall;
-import com.capstone.withyou.dao.StockRankDomesticRise;
-import com.capstone.withyou.dao.StockRankDomesticTrade;
-import com.capstone.withyou.repository.StockRankDomesticFallRepository;
-import com.capstone.withyou.repository.StockRankDomesticRiseRepository;
-import com.capstone.withyou.repository.StockRankDomesticTradeRepository;
+import com.capstone.withyou.dao.*;
+import com.capstone.withyou.repository.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -29,20 +24,29 @@ public class StockRankListController {
     private final StockRankDomesticRiseRepository stockRankDomesticRiseRepository;
     private final StockRankDomesticFallRepository stockRankDomesticFallRepository;
     private final StockRankDomesticTradeRepository stockRankDomesticTradeRepository;
+    private final StockRankOverseasRiseRepository stockRankOverseasRiseRepository;
+    private final StockRankOverseasFallRepository stockRankOverseasFallRepository;
+    private final StockRankOverseasTradeRepository stockRankOverseasTradeRepository;
 
     @Autowired
     public StockRankListController(StockRankDomesticRiseRepository stockRankDomesticRiseRepository,
                                    StockRankDomesticFallRepository stockRankDomesticFallRepository,
-                                   StockRankDomesticTradeRepository stockRankDomesticTradeRepository) {
+                                   StockRankDomesticTradeRepository stockRankDomesticTradeRepository,
+                                   StockRankOverseasRiseRepository stockRankOverseasRiseRepository,
+                                   StockRankOverseasFallRepository stockRankOverseasFallRepository,
+                                   StockRankOverseasTradeRepository stockRankOverseasTradeRepository) {
         this.stockRankDomesticRiseRepository = stockRankDomesticRiseRepository;
         this.stockRankDomesticFallRepository = stockRankDomesticFallRepository;
         this.stockRankDomesticTradeRepository = stockRankDomesticTradeRepository;
+        this.stockRankOverseasRiseRepository = stockRankOverseasRiseRepository;
+        this.stockRankOverseasFallRepository = stockRankOverseasFallRepository;
+        this.stockRankOverseasTradeRepository = stockRankOverseasTradeRepository;
     }
 
     @GetMapping("/rise")
     @Operation(
-            summary = "주식 상승율 순위 조회",
-            description = "일간, 주간, 월간, 년간 기준으로 주식 상승율 순위를 조회합니다.",
+            summary = "국내 주식 상승률 순위 조회",
+            description = "일간, 주간, 월간, 년간 기준으로 주식 상승률 순위를 조회합니다.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "성공적으로 순위를 조회함",
                             content = @Content(mediaType = "application/json",
@@ -119,12 +123,12 @@ public class StockRankListController {
 
     @GetMapping("/fall")
     @Operation(
-            summary = "주식 하락율 순위 조회",
-            description = "일간, 주간, 월간, 년간 기준으로 주식 하락율 순위를 조회합니다.",
+            summary = "국내 주식 하락률 순위 조회",
+            description = "일간, 주간, 월간, 년간 기준으로 주식 하락률 순위를 조회합니다.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "성공적으로 순위를 조회함",
                             content = @Content(mediaType = "application/json",
-                                    schema = @Schema(implementation = StockRankDomesticRise.class),
+                                    schema = @Schema(implementation = StockRankDomesticFall.class),
                                     examples = @ExampleObject(value =
                                             """
                                             [
@@ -197,12 +201,12 @@ public class StockRankListController {
 
     @GetMapping("/trade-volume")
     @Operation(
-            summary = "주식 거래량 순위 조회",
-            description = "주식 거래량 순위를 조회합니다.",
+            summary = "국내 주식 거래량 순위 조회",
+            description = "국내 주식의 거래량 순위를 조회합니다.",
             responses = {
                     @ApiResponse(responseCode = "200", description = "성공적으로 순위를 조회함",
                             content = @Content(mediaType = "application/json",
-                                    schema = @Schema(implementation = StockRankDomesticRise.class),
+                                    schema = @Schema(implementation = StockRankDomesticTrade.class),
                                     examples = @ExampleObject(value =
                                             """
                                             [
@@ -250,6 +254,215 @@ public class StockRankListController {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to retrieve stock rankings", e);
         }
 
+        return ResponseEntity.ok(stocks);
+    }
+
+    @GetMapping("/rise/overseas")
+    @Operation(
+            summary = "해외 주식 상승률 순위 조회",
+            description = "일간, 주간, 월간, 년간 기준으로 주식 상승률 순위를 조회합니다.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "성공적으로 순위를 조회함",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = StockRankOverseasRise.class),
+                                    examples = @ExampleObject(value =
+                                            """
+                                            [
+                                             {
+                                                "stockCode": "OCEA",
+                                                "period": "DAILY",
+                                                "rank": 3,
+                                                "excd": "NAS",
+                                                "stockName": "오션 바이오메디컬",
+                                                "stockNameEng": "OCEAN BIOMEDICAL INC",
+                                                "currentPrice": 0.2219,
+                                                "changePrice": 0.0739,
+                                                "changeRate": 49.93,
+                                                "tradeVolume": 25570894
+                                             },
+                                             {
+                                              "...": "..."
+                                             }
+                                            ]
+                                            """
+                                    )
+                            )),
+                    @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = ErrorResponse.class),
+                                    examples = @ExampleObject(value =
+                                            """
+                                            {
+                                              "errorCode": "INVALID_PERIOD",
+                                              "errorMessage": "Invalid period: INVALID"
+                                            }
+                                            """
+                                    )
+                            )),
+                    @ApiResponse(responseCode = "500", description = "서버 오류",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = ErrorResponse.class),
+                                    examples = @ExampleObject(value =
+                                            """
+                                            {
+                                              "errorCode": "INTERNAL_SERVER_ERROR",
+                                              "errorMessage": "Failed to retrieve stock rankings"
+                                            }
+                                            """
+                                    )
+                            ))
+
+            }
+    )
+    public ResponseEntity<List<StockRankOverseasRise>> getOverseasRises(
+            @Parameter(description = "조회 기간 (DAILY, WEEKLY, MONTHLY, YEARLY)", example = "DAILY")
+            @RequestParam(defaultValue = "DAILY") String period
+    ) {
+        StockPeriod stockPeriod;
+        try {
+            stockPeriod = StockPeriod.valueOf(period.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid period: " + period);
+        }
+
+        List<StockRankOverseasRise> stocks;
+        try {
+            stocks = stockRankOverseasRiseRepository.findByPeriodOrderByRank(stockPeriod);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to retrieve stock rankings", e);
+        }
+        return ResponseEntity.ok(stocks);
+    }
+
+    @GetMapping("/fall/overseas")
+    @Operation(
+            summary = "해외 주식 하락률 순위 조회",
+            description = "일간, 주간, 월간, 년간 기준으로 주식 하락률 순위를 조회합니다.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "성공적으로 순위를 조회함",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = StockRankOverseasFall.class),
+                                    examples = @ExampleObject(value =
+                                            """
+                                            [
+                                             {
+                                                "stockCode": "FLNC",
+                                                "period": "DAILY",
+                                                "rank": 1,
+                                                "excd": "NAS",
+                                                "stockName": "플루언스 에너지",
+                                                "stockNameEng": "FLUENCE ENERGY INC",
+                                                "currentPrice": 7.57,
+                                                "changePrice": 5.5,
+                                                "changeRate": -42.08,
+                                                "tradeVolume": 896618
+                                             },
+                                             {
+                                              "...": "..."
+                                             }
+                                            ]
+                                            """
+                                    )
+                            )),
+                    @ApiResponse(responseCode = "400", description = "잘못된 요청",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = ErrorResponse.class),
+                                    examples = @ExampleObject(value =
+                                            """
+                                            {
+                                              "errorCode": "INVALID_PERIOD",
+                                              "errorMessage": "Invalid period: INVALID"
+                                            }
+                                            """
+                                    )
+                            )),
+                    @ApiResponse(responseCode = "500", description = "서버 오류",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = ErrorResponse.class),
+                                    examples = @ExampleObject(value =
+                                            """
+                                            {
+                                              "errorCode": "INTERNAL_SERVER_ERROR",
+                                              "errorMessage": "Failed to retrieve stock rankings"
+                                            }
+                                            """
+                                    )
+                            ))
+
+            }
+    )
+    public ResponseEntity<List<StockRankOverseasFall>> getOverseasFall(
+            @Parameter(description = "조회 기간 (DAILY, WEEKLY, MONTHLY, YEARLY)", example = "DAILY")
+            @RequestParam(defaultValue = "DAILY") String period
+    ) {
+        StockPeriod stockPeriod;
+        try {
+            stockPeriod = StockPeriod.valueOf(period.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid period: " + period);
+        }
+
+        List<StockRankOverseasFall> stocks;
+
+        try {
+            stocks = stockRankOverseasFallRepository.findByPeriodOrderByRank(stockPeriod);
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to retrieve stock rankings", e);
+        }
+        return ResponseEntity.ok(stocks);
+    }
+
+    @GetMapping("/trade-volume/overseas")
+    @Operation(
+            summary = "해외 주식 거래량 순위 조회",
+            description = "해외 주식의 거래량 순위를 조회합니다.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "성공적으로 순위를 조회함",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = StockRankOverseasTrade.class),
+                                    examples = @ExampleObject(value =
+                                            """
+                                            [
+                                             {
+                                                "stockCode": "CYN",
+                                                "excd": "NAS",
+                                                "rank": 1,
+                                                "stockName": "신젠",
+                                                "stockNameEng": "CYNGN INC",
+                                                "currentPrice": 0.1935,
+                                                "changePrice": 0.0088,
+                                                "changeRate": 4.76,
+                                                "tradeVolume": 37872379
+                                             },
+                                             {
+                                              "...": "..."
+                                             }
+                                            ]
+                                            """
+                                    )
+                            )),
+                    @ApiResponse(responseCode = "500", description = "서버 오류",
+                            content = @Content(mediaType = "application/json",
+                                    schema = @Schema(implementation = ErrorResponse.class),
+                                    examples = @ExampleObject(value =
+                                            """
+                                            {
+                                              "errorCode": "INTERNAL_SERVER_ERROR",
+                                              "errorMessage": "Failed to retrieve stock rankings"
+                                            }
+                                            """
+                                    )
+                            ))
+
+            }
+    )
+    public ResponseEntity<List<StockRankOverseasTrade>> getOverseasTrades() {
+        List<StockRankOverseasTrade> stocks;
+        try {
+            stocks = stockRankOverseasTradeRepository.findAllByOrderByRankAsc();
+        } catch (Exception e) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to retrieve stock rankings", e);
+        }
         return ResponseEntity.ok(stocks);
     }
 }
