@@ -1,6 +1,8 @@
 package com.capstone.withyou.service;
 
+import com.capstone.withyou.dao.News;
 import com.capstone.withyou.dto.NewsDTO;
+import com.capstone.withyou.repository.NewsRepository;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -10,6 +12,7 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -18,17 +21,29 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
+@Transactional
 public class NewsService {
 
     private static final String CLIENT_ID = "5JqHYhjjYfER9F2OAfFq"; // 네이버 API Client ID
     private static final String CLIENT_SECRET = "spP4PaYNXs"; // 네이버 API Client Secret
     private static final List<PressInfo> SITE_LIST = getPressList(); // 언론사 정보
+    private static final long CACHE_DURATION = 10 * 60 * 1000; // 뉴스 유효 시간(10분)
+
+    private final NewsRepository newsRepository;
+
+    public NewsService(NewsRepository newsRepository) {
+        this.newsRepository = newsRepository;
+    }
 
     @Getter @Setter
     @AllArgsConstructor
+    // 언론사 내부 클래스
     private static class PressInfo {
         private String site; // 도메인
         private String pressName; // 언론사명
@@ -36,7 +51,23 @@ public class NewsService {
 
     // 주식 이름, 카테고리로 뉴스 조회
     public List<NewsDTO> getNewsFromNaver(String stockName, String category, int page) {
+        List<News> cachedNews = newsRepository.findByStockName(stockName);
+
+        // 뉴스 데이터가 존재하고, 유효하면 DB에서 NewsDTO로 변환 후 리턴
+        if(!cachedNews.isEmpty() && isCacheValid(cachedNews.get(0).getLastViewTime())){
+            return convertToDTO(cachedNews);
+        }
+
+        // 그렇지 않으면 뉴스 가져와서 newsDTO 생성 + 기존 뉴스 데이터 삭제 + Entity로 변환해 DB에 새로 업데이트
+        List<NewsDTO> newsList = fetchNewsFromNaver(stockName, category, page);
+        updateNewsCache(stockName, newsList);
+        return newsList;
+    }
+
+    // 네이버에서 특정 주식에 대한 뉴스 가져오기
+    private List<NewsDTO> fetchNewsFromNaver(String stockName, String category, int page) {
         List<NewsDTO> newsList = new ArrayList<>();
+
         try {
             // 검색어와 카테고리 URL 인코딩
             String query;
@@ -81,6 +112,19 @@ public class NewsService {
         return newsList;
     }
 
+    // 뉴스 데이터 캐시 유효 체크
+    private boolean isCacheValid(LocalDateTime lastViewTime) {
+        return Duration.between(lastViewTime, LocalDateTime.now())
+                .toMillis()<CACHE_DURATION;
+    }
+
+    // 기존 뉴스 데이터 지우고 새로 업데이트
+    private void updateNewsCache(String stockName, List<NewsDTO> newsList) {
+        newsRepository.deleteByStockName(stockName);
+        List<News> newsEntities = convertToEntity(newsList, stockName);
+        newsRepository.saveAll(newsEntities);
+    }
+
     // API URL 생성
     private String buildApiUrl(String query, int page) {
         int start = (page - 1) * 10 + 1; // 페이지 계산
@@ -98,6 +142,36 @@ public class NewsService {
         newsDTO.setDate(getDate(item.getString("pubDate")));
         newsDTO.setImageUrl(getImageURL(newsDTO.getLink()));
         return newsDTO;
+    }
+
+    // Entity -> DTO 변환(컨트롤러로 반환할 때)
+    private List<NewsDTO> convertToDTO(List<News> newsList) {
+        return newsList.stream().map(news -> {
+            NewsDTO newsDTO = new NewsDTO();
+            newsDTO.setTitle(news.getTitle());
+            newsDTO.setLink(news.getLink());
+            newsDTO.setSummary(news.getSummary());
+            newsDTO.setPress(getPress(news.getLink()));
+            newsDTO.setDate(news.getDate());
+            newsDTO.setImageUrl(news.getImageUrl());
+            return newsDTO;
+        }).collect(Collectors.toList());
+    }
+
+    // DTO -> Entity 변환(DB에 저장해야할 때)
+    private List<News> convertToEntity(List<NewsDTO> newsDTOList, String stockName) {
+        return newsDTOList.stream().map(newsDTO ->{
+            News news = new News();
+            news.setStockName(stockName);
+            news.setLastViewTime(LocalDateTime.now());
+            news.setTitle(newsDTO.getTitle());
+            news.setLink(newsDTO.getLink());
+            news.setSummary(newsDTO.getSummary());
+            news.setPress(newsDTO.getPress());
+            news.setDate(newsDTO.getDate());
+            news.setImageUrl(newsDTO.getImageUrl());
+            return news;
+        }).collect(Collectors.toList());
     }
 
     // 언론사 가져오기
@@ -143,6 +217,7 @@ public class NewsService {
     private static List<PressInfo> getPressList() {
         return Arrays.asList(
                 new PressInfo("khan.co", "경향신문"),
+                new PressInfo("naeil", "내일신문"),
                 new PressInfo("nextdaily.co.kr", "넥스트데일리"),
                 new PressInfo("biz.newdaily.co", "뉴데일리경제"),
                 new PressInfo("newspim", "뉴스핌"),
@@ -180,7 +255,6 @@ public class NewsService {
                 new PressInfo("primeeconomy.co.kr", "프라임경제"),
                 new PressInfo("hankyung.com", "한국경제"),
                 new PressInfo("heraldcorp.com", "헤럴드경제"),
-                new PressInfo("ceoscoredaily.com", "CEO스코어데일리"),
                 new PressInfo("it.chosun", "IT조선"),
                 new PressInfo("ytn.co", "YTN")
         );
