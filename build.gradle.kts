@@ -21,12 +21,14 @@ dependencies {
     implementation("org.mariadb.jdbc:mariadb-java-client")
     implementation("org.springframework.boot:spring-boot-starter-validation")
     implementation("org.springframework.boot:spring-boot-starter-web")
+    implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("org.springframework.boot:spring-boot-starter-websocket")
     implementation("org.springframework.boot:spring-boot-starter-security")
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
     implementation("org.jsoup:jsoup:1.18.3")
     implementation("org.json:json:20231013")
+    implementation("com.fasterxml.jackson.core:jackson-databind")
 
 
     compileOnly("org.projectlombok:lombok")
