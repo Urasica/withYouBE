@@ -29,6 +29,10 @@ public class StockRankingScheduler {
         enqueueTask(stockRankingService::fetchAndSaveLongTermStockRankings);
     }
 
+    public void fetchAndSaveLongTermStockRankings() {
+        enqueueTask(stockRankingService::fetchAndSaveLongTermStockRankings);
+    }
+
     private void enqueueTask(Runnable task) {
         executor.submit(() -> {
             try {
