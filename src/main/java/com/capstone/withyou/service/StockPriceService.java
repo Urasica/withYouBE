@@ -43,14 +43,15 @@ public class StockPriceService {
      */
     public List<StockPriceDTO> getDomesticStockPricesByDay(String stockCode, String period) {
         String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + period;
-        String cachedData = redisTemplate.opsForValue().get(cacheKey);
+        try {
+            String cachedData = redisTemplate.opsForValue().get(cacheKey);
 
-        if (cachedData != null) {
-            try {
+            if (cachedData != null) {
                 return objectMapper.readValue(cachedData, new TypeReference<>() {});
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
             }
+        } catch (Exception e) {
+            // Redis 연결 오류 로그
+            System.err.println("Redis 연결 오류: " + e.getMessage());
         }
 
         String url = "/uapi/domestic-stock/v1/quotations/inquire-daily-price"
@@ -114,14 +115,15 @@ public class StockPriceService {
         System.out.println("getOverseasPriceByDay");
 
         String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + period;
-        String cachedData = redisTemplate.opsForValue().get(cacheKey);
+        try {
+            String cachedData = redisTemplate.opsForValue().get(cacheKey);
 
-        if (cachedData != null) {
-            try {
+            if (cachedData != null) {
                 return objectMapper.readValue(cachedData, new TypeReference<>() {});
-            } catch (JsonProcessingException e) {
-                e.printStackTrace();
             }
+        } catch (Exception e) {
+            // Redis 연결 오류 로그
+            System.err.println("Redis 연결 오류: " + e.getMessage());
         }
 
         int day = switch (period) {
