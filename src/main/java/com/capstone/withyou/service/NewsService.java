@@ -1,8 +1,10 @@
 package com.capstone.withyou.service;
 
 import com.capstone.withyou.dao.News;
+import com.capstone.withyou.dao.StockPrediction;
 import com.capstone.withyou.dto.NewsDTO;
 import com.capstone.withyou.repository.NewsRepository;
+import com.capstone.withyou.repository.StockPredictionRepository;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
@@ -11,15 +13,16 @@ import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -30,15 +33,23 @@ import java.util.stream.Collectors;
 @Transactional
 public class NewsService {
 
-    private static final String CLIENT_ID = "5JqHYhjjYfER9F2OAfFq"; // 네이버 API Client ID
-    private static final String CLIENT_SECRET = "spP4PaYNXs"; // 네이버 API Client Secret
+    @Value("${naver.client.id}")
+    private String CLIENT_ID;
+
+    @Value("${naver.client.secret}")
+    private String CLIENT_SECRET;
+
     private static final List<PressInfo> SITE_LIST = getPressList(); // 언론사 정보
     private static final long CACHE_DURATION = 10 * 60 * 1000; // 뉴스 유효 시간(10분)
 
     private final NewsRepository newsRepository;
+    private final StockPredictionRepository stockPredictionRepository;
+    private final ChatGptService chatGptService;
 
-    public NewsService(NewsRepository newsRepository) {
+    public NewsService(NewsRepository newsRepository, StockPredictionRepository stockPredictionRepository, ChatGptService chatGptService) {
         this.newsRepository = newsRepository;
+        this.stockPredictionRepository = stockPredictionRepository;
+        this.chatGptService = chatGptService;
     }
 
     @Getter @Setter
@@ -49,19 +60,22 @@ public class NewsService {
         private String pressName; // 언론사명
     }
 
-    // 주식 이름, 카테고리로 뉴스 조회
-    public List<NewsDTO> getNewsFromNaver(String stockName, String category, int page) {
+    // 뉴스 조회(특정 주식에 대한 뉴스 정보 + 예측 결과)
+    public List<NewsDTO> getNewsAndPrediction(String stockName, String category, int page) {
         List<News> cachedNews = newsRepository.findByStockName(stockName);
 
-        // 뉴스 데이터가 존재하고, 유효하면 DB에서 NewsDTO로 변환 후 리턴
-        if(!cachedNews.isEmpty() && isCacheValid(cachedNews.get(0).getLastViewTime())){
+        // 뉴스 데이터가 존재하고, 유효하면 NewsDTO로 변환 후 리턴
+        if(!cachedNews.isEmpty()
+                && isCacheValid(cachedNews.get(0).getLastViewTime())){
             return convertToDTO(cachedNews);
         }
 
-        // 그렇지 않으면 뉴스 가져와서 newsDTO 생성 + 기존 뉴스 데이터 삭제 + Entity로 변환해 DB에 새로 업데이트
-        List<NewsDTO> newsList = fetchNewsFromNaver(stockName, category, page);
-        updateNewsCache(stockName, newsList);
-        return newsList;
+        // 그렇지 않으면 기존 뉴스 데이터 삭제 + 새로운 뉴스 데이터 가져와서 DB에 업데이트
+        List<NewsDTO> newsList = fetchNewsFromNaver(stockName, category, page); // 뉴스 정보
+        String prediction = chatGptService.predictStockResult(stockName, newsList); // 예측 결과
+
+        updateNewsCache(stockName, newsList, prediction);
+        return convertToDTO(newsRepository.findByStockName(stockName));
     }
 
     // 네이버에서 특정 주식에 대한 뉴스 가져오기
@@ -71,11 +85,7 @@ public class NewsService {
         try {
             // 검색어와 카테고리 URL 인코딩
             String query;
-            try {
-                query = URLEncoder.encode(stockName + " " + category, "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                throw new RuntimeException("검색어 인코딩 실패",e);
-            }
+            query = URLEncoder.encode(stockName + " " + category, StandardCharsets.UTF_8);
 
             // Api URL 설정
             String apiURL = buildApiUrl(query, page);
@@ -119,9 +129,14 @@ public class NewsService {
     }
 
     // 기존 뉴스 데이터 지우고 새로 업데이트
-    private void updateNewsCache(String stockName, List<NewsDTO> newsList) {
+    private void updateNewsCache(String stockName, List<NewsDTO> newsList, String prediction) {
         newsRepository.deleteByStockName(stockName);
-        List<News> newsEntities = convertToEntity(newsList, stockName);
+        stockPredictionRepository.deleteByStockName(stockName);
+
+        StockPrediction newPrediction = new StockPrediction(stockName, prediction);
+        stockPredictionRepository.save(newPrediction);
+
+        List<News> newsEntities = convertToEntity(newsList, stockName, newPrediction);
         newsRepository.saveAll(newsEntities);
     }
 
@@ -154,12 +169,13 @@ public class NewsService {
             newsDTO.setPress(getPress(news.getLink()));
             newsDTO.setDate(news.getDate());
             newsDTO.setImageUrl(news.getImageUrl());
+            newsDTO.setPredictedResult(news.getStockPrediction().getPredictedResult());
             return newsDTO;
         }).collect(Collectors.toList());
     }
 
     // DTO -> Entity 변환(DB에 저장해야할 때)
-    private List<News> convertToEntity(List<NewsDTO> newsDTOList, String stockName) {
+    private List<News> convertToEntity(List<NewsDTO> newsDTOList, String stockName, StockPrediction prediction) {
         return newsDTOList.stream().map(newsDTO ->{
             News news = new News();
             news.setStockName(stockName);
@@ -170,6 +186,7 @@ public class NewsService {
             news.setPress(newsDTO.getPress());
             news.setDate(newsDTO.getDate());
             news.setImageUrl(newsDTO.getImageUrl());
+            news.setStockPrediction(prediction);
             return news;
         }).collect(Collectors.toList());
     }
