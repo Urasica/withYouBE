@@ -37,7 +37,7 @@ public class ChatGptService {
             newsContent.append(news.getTitle()).append("\n")
                     .append(news.getSummary()).append("\n\n");
         }
-        String prompt = "다음 뉴스들을 바탕으로 "+ stockName + "의 주식 예상 결과를 3줄 한문단으로 간단하게 알려줘:" +
+        String prompt = "다음 뉴스들을 바탕으로 "+ stockName + "의 주식 예상 결과에서 상승 여부 정보 포함해서 3줄 한문단으로 간단하게 알려줘:" +
                 "\n\n" + newsContent;
 
         return callChatgptApi(prompt);

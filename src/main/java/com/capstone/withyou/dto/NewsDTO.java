@@ -11,5 +11,4 @@ public class NewsDTO {
     private String press;
     private String date;
     private String imageUrl;
-    private String predictedResult;
 }

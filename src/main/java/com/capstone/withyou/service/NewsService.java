@@ -3,6 +3,7 @@ package com.capstone.withyou.service;
 import com.capstone.withyou.dao.News;
 import com.capstone.withyou.dao.StockPrediction;
 import com.capstone.withyou.dto.NewsDTO;
+import com.capstone.withyou.dto.StockPredictionDTO;
 import com.capstone.withyou.repository.NewsRepository;
 import com.capstone.withyou.repository.StockPredictionRepository;
 import lombok.AllArgsConstructor;
@@ -56,12 +57,13 @@ public class NewsService {
     @AllArgsConstructor
     // 언론사 내부 클래스
     private static class PressInfo {
+
         private String site; // 도메인
         private String pressName; // 언론사명
     }
 
-    // 뉴스 조회(특정 주식에 대한 뉴스 정보 + 예측 결과)
-    public List<NewsDTO> getNewsAndPrediction(String stockName, String category, int page) {
+    // 뉴스 조회
+    public List<NewsDTO> getNews(String stockName, String category, int page) {
         List<News> cachedNews = newsRepository.findByStockName(stockName);
 
         // 뉴스 데이터가 존재하고, 유효하면 NewsDTO로 변환 후 리턴
@@ -76,6 +78,12 @@ public class NewsService {
 
         updateNewsCache(stockName, newsList, prediction);
         return convertToDTO(newsRepository.findByStockName(stockName));
+    }
+
+    // 주식 예측 결과 조회
+    public StockPredictionDTO getPrediction(String stockName) {
+        StockPrediction prediction = stockPredictionRepository.findTopByStockName(stockName);
+        return new StockPredictionDTO(prediction.getStockName(), prediction.getPredictedResult());
     }
 
     // 네이버에서 특정 주식에 대한 뉴스 가져오기
@@ -169,7 +177,6 @@ public class NewsService {
             newsDTO.setPress(getPress(news.getLink()));
             newsDTO.setDate(news.getDate());
             newsDTO.setImageUrl(news.getImageUrl());
-            newsDTO.setPredictedResult(news.getStockPrediction().getPredictedResult());
             return newsDTO;
         }).collect(Collectors.toList());
     }

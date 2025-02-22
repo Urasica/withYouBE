@@ -1,6 +1,7 @@
 package com.capstone.withyou.controller;
 
 import com.capstone.withyou.dto.NewsDTO;
+import com.capstone.withyou.dto.StockPredictionDTO;
 import com.capstone.withyou.service.NewsService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,14 +18,21 @@ public class NewsController {
         this.newsService = newsService;
     }
 
-    // 뉴스 데이터 조회(예측 결과 포함)
+    // 뉴스 데이터 조회
     @GetMapping("/{stockName}")
     public ResponseEntity<List<NewsDTO>> getNews(
             @PathVariable String stockName,
             @RequestParam(defaultValue = "주식 주가") String category,
             @RequestParam(defaultValue = "1") int page
     ) {
-        List<NewsDTO> news = newsService.getNewsAndPrediction(stockName, category, page);
+        List<NewsDTO> news = newsService.getNews(stockName, category, page);
         return ResponseEntity.ok(news);
+    }
+
+    // 예측 결과 조회
+    @GetMapping("/{stockName}/prediction")
+    public ResponseEntity<StockPredictionDTO> getPrediction(@PathVariable String stockName){
+        StockPredictionDTO prediction = newsService.getPrediction(stockName);
+        return ResponseEntity.ok(prediction);
     }
 }
