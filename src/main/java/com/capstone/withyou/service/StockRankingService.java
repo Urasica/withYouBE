@@ -6,9 +6,10 @@ import com.capstone.withyou.repository.*;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.http.*;
 import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -32,6 +33,7 @@ public class StockRankingService {
     private final StockRankOverseasRiseRepository stockRankOverseasRiseRepository;
     private final StockRankOverseasFallRepository stockRankOverseasFallRepository;
     private final StockRankOverseasTradeRepository stockRankOverseasTradeRepository;
+    private final WebClient webClient;
 
 
     private final AccessTokenManager tokenManager;
@@ -44,7 +46,8 @@ public class StockRankingService {
                                StockRankDomesticTradeRepository stockRankDomesticTradeRepository,
                                StockRankOverseasRiseRepository stockRankOverseasRiseRepository,
                                StockRankOverseasFallRepository stockRankOverseasFallRepository,
-                               StockRankOverseasTradeRepository stockRankOverseasTradeRepository) {
+                               StockRankOverseasTradeRepository stockRankOverseasTradeRepository,
+                               WebClient webClient) {
         this.stockRankDomesticRiseRepository = stockRankDomesticRiseRepository;
         this.tokenManager = tokenManager;
         this.stockRankDomesticFallRepository = stockRankDomesticFallRepository;
@@ -52,6 +55,7 @@ public class StockRankingService {
         this.stockRankOverseasRiseRepository = stockRankOverseasRiseRepository;
         this.stockRankOverseasFallRepository = stockRankOverseasFallRepository;
         this.stockRankOverseasTradeRepository = stockRankOverseasTradeRepository;
+        this.webClient = webClient;
     }
 
     @Transactional
@@ -92,6 +96,22 @@ public class StockRankingService {
         }
     }
 
+    private Mono<JsonNode> fetchStockData(String url, String tradeCode) {
+        return webClient.get()
+                .uri(url)
+                .headers(headers -> {
+                    headers.setContentType(MediaType.APPLICATION_JSON);
+                    headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
+                    headers.set("appkey", appKey);
+                    headers.set("appsecret", appSecret);
+                    headers.set("tr_id", tradeCode);
+                    headers.set("custtype", "P");
+                })
+                .retrieve()
+                .bodyToMono(JsonNode.class);
+    }
+
+
     /**
      * 국내 주식 등락률 순위 (0:상승률, 1:하락률)
      */
@@ -113,20 +133,7 @@ public class StockRankingService {
                 + "&fid_rsfl_rate1="
                 + "&fid_rsfl_rate2=";
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-        headers.set("appkey", appKey);
-        headers.set("appsecret", appSecret);
-        headers.set("tr_id", "FHPST01700000");
-        headers.set("tr_cont", "");
-        headers.set("custtype", "P");
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
-
-        JsonNode responseBody = response.getBody();
+        JsonNode responseBody = fetchStockData(url, "FHPST01700000").block();
 
         if (responseBody != null) {
             JsonNode rankings = responseBody.get("output");
@@ -195,20 +202,7 @@ public class StockRankingService {
                 + "&FID_VOL_CNT="
                 + "&FID_INPUT_DATE_1=";
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-        headers.set("appkey", appKey);
-        headers.set("appsecret", appSecret);
-        headers.set("tr_id", "FHPST01710000");
-        headers.set("tr_cont", "");
-        headers.set("custtype", "P");
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
-
-        JsonNode responseBody = response.getBody();
+        JsonNode responseBody = fetchStockData(url, "FHPST01710000").block();
 
         if (responseBody != null) {
             JsonNode rankings = responseBody.get("output");
@@ -259,20 +253,7 @@ public class StockRankingService {
                 + "&VOL_RANG=1"
                 + "&KEYB=";
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-        headers.set("appkey", appKey);
-        headers.set("appsecret", appSecret);
-        headers.set("tr_id", "HHDFS76290000");
-        headers.set("tr_cont", "");
-        headers.set("custtype", "P");
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
-
-        JsonNode responseBody = response.getBody();
+        JsonNode responseBody = fetchStockData(url, "HHDFS76290000").block();
 
         if (responseBody != null) {
             JsonNode rankings = responseBody.get("output2");
@@ -328,20 +309,7 @@ public class StockRankingService {
                 + "&VOL_RANG=1"
                 + "&KEYB=";
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-        headers.set("appkey", appKey);
-        headers.set("appsecret", appSecret);
-        headers.set("tr_id", "HHDFS76310010");
-        headers.set("tr_cont", "");
-        headers.set("custtype", "P");
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-        RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<JsonNode> response = restTemplate.exchange(url, HttpMethod.GET, entity, JsonNode.class);
-
-        JsonNode responseBody = response.getBody();
+        JsonNode responseBody = fetchStockData(url, "HHDFS76310010").block();
 
         if (responseBody != null) {
             JsonNode rankings = responseBody.get("output2");

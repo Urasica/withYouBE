@@ -1,6 +1,8 @@
 package com.capstone.withyou.controller;
 
+import com.capstone.withyou.dto.StockCurPriceDTO;
 import com.capstone.withyou.dto.StockPriceDTO;
+import com.capstone.withyou.dto.StockPriceDayDTO;
 import com.capstone.withyou.service.StockPriceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -109,7 +111,7 @@ public class StockPriceController {
             prices = stockPriceService.getDomesticStockPricesByDay(stockCode, period);
         } else if (stockCode.chars().allMatch(Character::isLetterOrDigit)) {
             // 숫자 또는 알파벳으로 구성된 경우 해외 주식으로 처리
-            prices = stockPriceService.getOverseasPriceByDay(stockCode, period);
+            prices = stockPriceService.getOverseasStockPriceByDay(stockCode, period);
         } else {
             // 숫자와 알파벳 이외의 문자가 포함된 경우
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid stock code");
@@ -118,4 +120,45 @@ public class StockPriceController {
         return ResponseEntity.ok(prices);
     }
 
+    @GetMapping("/prices-today/{stockCode}")
+    public ResponseEntity<List<StockPriceDayDTO>> getStockPricesToday(
+            @PathVariable String stockCode,
+            @Parameter(description = "조회 범위 - 1 입력: 1분봉, 3 입력: 3분봉 ... ")
+            @RequestParam(defaultValue = "1") String time
+    ) {
+        List<StockPriceDayDTO> prices;
+
+        if(!time.chars().allMatch(Character::isDigit)){
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "입력된 " + time + "은 숫자가 아닙니다.");
+        }
+
+        if (stockCode.chars().allMatch(Character::isDigit)) {
+            // 숫자로만 구성된 경우 국내 주식으로 처리
+            prices = stockPriceService.getDomesticStockPricesDistribution(stockCode, time);
+        } else if (stockCode.chars().allMatch(Character::isLetterOrDigit)) {
+            // 숫자 또는 알파벳으로 구성된 경우 해외 주식으로 처리
+            prices = stockPriceService.getOverseasStockPricesDistribution(stockCode, time);
+        } else {
+            // 숫자와 알파벳 이외의 문자가 포함된 경우
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid stock code");
+        }
+
+        return ResponseEntity.ok(prices);
+    }
+
+    @GetMapping("/current-price")
+    public ResponseEntity<StockCurPriceDTO> getCurrentPrice(@RequestParam String stockCode) {
+        StockCurPriceDTO stockCurPrice;
+
+        if (stockCode.chars().allMatch(Character::isDigit)) {
+            stockCurPrice = stockPriceService.getDomesticStockCurPrice(stockCode);
+        } else if (stockCode.chars().allMatch(Character::isLetterOrDigit)) {
+            stockCurPrice = stockPriceService.getOverseasStockCurPrice(stockCode);
+        } else {
+            // 숫자와 알파벳 이외의 문자가 포함된 경우
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid stock code");
+        }
+
+        return ResponseEntity.ok(stockCurPrice);
+    }
 }

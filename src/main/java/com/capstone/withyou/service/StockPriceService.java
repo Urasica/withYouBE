@@ -1,7 +1,9 @@
 package com.capstone.withyou.service;
 
 import com.capstone.withyou.Manager.AccessTokenManager;
+import com.capstone.withyou.dto.StockCurPriceDTO;
 import com.capstone.withyou.dto.StockPriceDTO;
+import com.capstone.withyou.dto.StockPriceDayDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,7 +13,10 @@ import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -36,6 +41,21 @@ public class StockPriceService {
         this.objectMapper = objectMapper;
         this.tokenManager = tokenManager;
         this.webClient = webClient;
+    }
+
+    private Mono<String> fetchStockData(String url, String tradeCode) {
+        return webClient.get()
+                .uri(url)
+                .headers(headers -> {
+                    headers.setContentType(MediaType.APPLICATION_JSON);
+                    headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
+                    headers.set("appkey", appKey);
+                    headers.set("appsecret", appSecret);
+                    headers.set("tr_id", tradeCode);
+                    headers.set("custtype", "P");
+                })
+                .retrieve()
+                .bodyToMono(String.class);
     }
 
     /**
@@ -100,7 +120,7 @@ public class StockPriceService {
 
         try {
             if (!stockPrices.isEmpty())
-                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 3, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 60, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
@@ -111,7 +131,7 @@ public class StockPriceService {
     /**
      * 해외 주식 시세 조회
      */
-    public List<StockPriceDTO> getOverseasPriceByDay(String stockCode, String period) {
+    public List<StockPriceDTO> getOverseasStockPriceByDay(String stockCode, String period) {
         System.out.println("getOverseasPriceByDay");
 
         String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + period;
@@ -181,11 +201,268 @@ public class StockPriceService {
 
         try {
             if (!stockPrices.isEmpty())
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 60, TimeUnit.MINUTES);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+
+        return stockPrices;
+    }
+
+    /**
+     * 국내 주식 분봉 조회
+     */
+    public List<StockPriceDayDTO> getDomesticStockPricesDistribution(String stockCode, String time) {
+        String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":Day:" + time;
+
+        try {
+            String cachedData = redisTemplate.opsForValue().get(cacheKey);
+
+            if (cachedData != null) {
+                return objectMapper.readValue(cachedData, new TypeReference<>() {});
+            }
+        } catch (Exception e) {
+            // Redis 연결 오류 로그
+            System.err.println("Redis 연결 오류: " + e.getMessage());
+        }
+
+        LocalDate today = LocalDate.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyyMMdd");
+        String formattedDate = today.format(formatter);
+
+        String url = "/uapi/domestic-stock/v1/quotations/inquire-time-dailychartprice"
+                + "?FID_COND_MRKT_DIV_CODE=J"
+                + "&FID_INPUT_ISCD=" + stockCode
+                + "&FID_INPUT_DATE_1=" + formattedDate
+                + "&FID_INPUT_HOUR_1="
+                + "&FID_PW_DATA_INCU_YN=Y"
+                + "&FID_FAKE_TICK_INCU_YN=N";
+
+        String response = webClient.get()
+                .uri(url)
+                .headers(headers -> {
+                    headers.setContentType(MediaType.APPLICATION_JSON);
+                    headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
+                    headers.set("appkey", appKey);
+                    headers.set("appsecret", appSecret);
+                    headers.set("tr_id", "FHKST03010230");
+                    headers.set("tr_cont", "");
+                    headers.set("custtype", "P");
+                })
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+        List<StockPriceDayDTO> stockPrices = new ArrayList<>();
+
+        try {
+            JsonNode rootNode = objectMapper.readTree(response);
+            if (!rootNode.has("output2") || !rootNode.get("output2").isArray()) {
+                throw new RuntimeException("주식 데이터 형식 오류: " + rootNode.toPrettyString());
+            }
+            JsonNode outputNode = rootNode.get("output2");
+
+            for (JsonNode node : outputNode) {
+                stockPrices.add(new StockPriceDayDTO(
+                        node.get("stck_bsop_date").asText(),
+                        node.get("stck_cntg_hour").asText(),
+                        node.get("stck_oprc").asDouble(),
+                        node.get("stck_hgpr").asDouble(),
+                        node.get("stck_lwpr").asDouble(),
+                        node.get("stck_prpr").asDouble(),
+                        node.get("cntg_vol").asLong(),
+                        node.get("acml_tr_pbmn").asLong()
+                ));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("JSON 파싱 오류: " + e.getMessage(), e);
+        }
+
+        try {
+            if (!stockPrices.isEmpty())
                 redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 3, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             e.printStackTrace();
         }
 
         return stockPrices;
+    }
+
+    /**
+     * 해외 주식 분봉 조회
+     */
+    public List<StockPriceDayDTO> getOverseasStockPricesDistribution(String stockCode, String time) {
+        String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":Day:" + time;
+
+        try {
+            String cachedData = redisTemplate.opsForValue().get(cacheKey);
+
+            if (cachedData != null) {
+                return objectMapper.readValue(cachedData, new TypeReference<>() {});
+            }
+        } catch (Exception e) {
+            // Redis 연결 오류 로그
+            System.err.println("Redis 연결 오류: " + e.getMessage());
+        }
+
+        String url = "/uapi/overseas-price/v1/quotations/inquire-time-itemchartprice"
+                + "?AUTH="
+                + "&EXCD=NAS"
+                + "&SYMB=" + stockCode
+                + "&NMIN=" + time
+                + "&NREC=120"
+                + "&PINC=0"
+                + "&NEXT="
+                + "&FILL="
+                + "&KEYB=";
+
+        String response = webClient.get()
+                .uri(url)
+                .headers(headers -> {
+                    headers.setContentType(MediaType.APPLICATION_JSON);
+                    headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
+                    headers.set("appkey", appKey);
+                    headers.set("appsecret", appSecret);
+                    headers.set("tr_id", "HHDFS76950200");
+                    headers.set("tr_cont", "");
+                    headers.set("custtype", "P");
+                })
+                .retrieve()
+                .bodyToMono(String.class)
+                .block();
+
+        List<StockPriceDayDTO> stockPrices = new ArrayList<>();
+
+        try {
+            JsonNode rootNode = objectMapper.readTree(response);
+            if (!rootNode.has("output2") || !rootNode.get("output2").isArray()) {
+                throw new RuntimeException("해외 주식 데이터 형식 오류: " + rootNode.toPrettyString());
+            }
+            JsonNode outputNode = rootNode.get("output2");
+
+            for (JsonNode node : outputNode) {
+                stockPrices.add(new StockPriceDayDTO(
+                        node.get("kymd").asText(),
+                        node.get("khms").asText(),
+                        node.get("open").asDouble(),
+                        node.get("high").asDouble(),
+                        node.get("low").asDouble(),
+                        node.get("last").asDouble(),
+                        node.get("evol").asLong(),
+                        node.get("eamt").asLong()
+                ));
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("JSON 파싱 오류: " + e.getMessage(), e);
+        }
+
+        try {
+            if (!stockPrices.isEmpty())
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 3, TimeUnit.MINUTES);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+
+        return stockPrices;
+    }
+
+    /**
+     * 국내 주식 현재가 조회
+     */
+    public StockCurPriceDTO getDomesticStockCurPrice(String stockCode) {
+        String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + "NOW";
+        try {
+            String cachedData = redisTemplate.opsForValue().get(cacheKey);
+
+            if (cachedData != null) {
+                return objectMapper.readValue(cachedData, new TypeReference<>() {});
+            }
+        } catch (Exception e) {
+            // Redis 연결 오류 로그
+            System.err.println("Redis 연결 오류: " + e.getMessage());
+        }
+
+        String url = "/uapi/domestic-stock/v1/quotations/inquire-ccnl"
+                + "?FID_COND_MRKT_DIV_CODE=J"
+                + "&FID_INPUT_ISCD=" + stockCode;
+
+        String response = fetchStockData(url, "FHKST01010300").block();
+
+        StockCurPriceDTO stockPrice = null;
+        try {
+            JsonNode rootNode = objectMapper.readTree(response);
+            JsonNode outputNode = rootNode.path("output");
+
+            if (!outputNode.isArray()) {
+                throw new RuntimeException("국내 주식 데이터 형식 오류: " + rootNode.toPrettyString());
+            }
+
+            JsonNode latestNode = outputNode.get(0);  // 첫 번째 데이터
+
+            stockPrice = new StockCurPriceDTO(
+                    latestNode.get("stck_prpr").asDouble(), // 주식 현재가
+                    latestNode.get("prdy_vrss").asDouble(), // 전일 대비 가격
+                    latestNode.get("prdy_ctrt").asDouble()  // 전일 대비율
+            );
+
+        } catch (Exception e) {
+            throw new RuntimeException("JSON 파싱 오류: " + e.getMessage(), e);
+        }
+
+        try {
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 60, TimeUnit.MINUTES);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+
+        return stockPrice;
+    }
+
+    public StockCurPriceDTO getOverseasStockCurPrice(String stockCode) {
+        String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + "NOW";
+        try {
+            String cachedData = redisTemplate.opsForValue().get(cacheKey);
+
+            if (cachedData != null) {
+                return objectMapper.readValue(cachedData, new TypeReference<>() {});
+            }
+        } catch (Exception e) {
+            // Redis 연결 오류 로그
+            System.err.println("Redis 연결 오류: " + e.getMessage());
+        }
+
+        String url = "/uapi/overseas-price/v1/quotations/price"
+                + "?AUTH="
+                + "&EXCD=NAS"
+                + "&SYMB=" + stockCode;
+
+        String response = fetchStockData(url, "HHDFS00000300").block();
+
+        StockCurPriceDTO stockPrice = null;
+        try {
+            JsonNode rootNode = objectMapper.readTree(response);
+            JsonNode outputNode = rootNode.path("output");
+
+            if (outputNode.isObject()) {
+                stockPrice = new StockCurPriceDTO(
+                        outputNode.get("last").asDouble(),  // 주식 현재가
+                        outputNode.get("diff").asDouble(),  // 전일 대비 가격
+                        outputNode.get("rate").asDouble()   // 전일 대비율
+                );
+            } else {
+                throw new RuntimeException("해외 주식 데이터 형식 오류: " + rootNode.toPrettyString());
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("JSON 파싱 오류: " + e.getMessage(), e);
+        }
+
+        try {
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 60, TimeUnit.MINUTES);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+
+        return stockPrice;
     }
 }
