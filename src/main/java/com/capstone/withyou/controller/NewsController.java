@@ -17,13 +17,14 @@ public class NewsController {
         this.newsService = newsService;
     }
 
+    // 뉴스 데이터 조회(예측 결과 포함)
     @GetMapping("/{stockName}")
     public ResponseEntity<List<NewsDTO>> getNews(
             @PathVariable String stockName,
             @RequestParam(defaultValue = "주식 주가") String category,
             @RequestParam(defaultValue = "1") int page
     ) {
-        List<NewsDTO> news = newsService.getNewsFromNaver(stockName, category, page);
+        List<NewsDTO> news = newsService.getNewsAndPrediction(stockName, category, page);
         return ResponseEntity.ok(news);
     }
 }

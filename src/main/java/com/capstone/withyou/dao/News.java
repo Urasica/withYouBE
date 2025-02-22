@@ -25,4 +25,8 @@ public class News {
     private String press;
     private String date;
     private String imageUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name="stock_prediction_id")
+    private StockPrediction stockPrediction;
 }
