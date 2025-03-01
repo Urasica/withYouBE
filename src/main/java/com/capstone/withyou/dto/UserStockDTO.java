@@ -14,7 +14,7 @@ public class UserStockDTO {
     private String stockCode;
     private String stockName;
     private BigDecimal currentPrice; // 현재 주가
-    private BigDecimal purchasePrice; // 매입 주가
+    private BigDecimal averagePurchasePrice; // 평균 매입 주가
     private BigDecimal profitAmount; //손익 금액
     private BigDecimal profitRate; //손익률
     private BigDecimal totalAmount; //총 금액(현재 주가 * 주식 수)

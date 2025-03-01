@@ -20,4 +20,10 @@ public class User {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<UserStock> stocks;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<UserTradeHistory> purchases;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    private List<WatchList> watchLists;
 }
