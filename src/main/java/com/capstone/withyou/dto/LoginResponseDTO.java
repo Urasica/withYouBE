@@ -13,5 +13,5 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class LoginResponseDTO {
     private String userId;
-    private BigDecimal balance;
+    private Double balance;
 }

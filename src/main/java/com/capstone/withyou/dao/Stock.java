@@ -5,17 +5,16 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Getter
-@Setter
-public class WatchList {
+@Setter @Getter
+public class Stock {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
-
+    @Column(nullable = false)
     private String stockCode;
-    private String stockName;
+
+    @Column(nullable = false)
+    private String StockName;
 }

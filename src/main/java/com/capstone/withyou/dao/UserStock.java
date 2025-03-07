@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.math.BigDecimal;
-
 @Entity
 @Setter @Getter
 public class UserStock {
@@ -16,7 +14,7 @@ public class UserStock {
     private String stockCode;
     private String stockName;
     private int quantity;
-    private BigDecimal averagePurchasePrice;
+    private Double averagePurchasePrice;
 
     @ManyToOne
     @JoinColumn(name = "user_id")

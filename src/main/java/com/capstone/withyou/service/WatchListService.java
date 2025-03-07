@@ -16,10 +16,12 @@ public class WatchListService {
 
     private final UserRepository userRepository;
     private final WatchListRepository watchListRepository;
+    private final StockNameService stockNameService;
 
-    public WatchListService(UserRepository userRepository, WatchListRepository watchListRepository) {
+    public WatchListService(UserRepository userRepository, WatchListRepository watchListRepository, StockNameService stockNameService) {
         this.userRepository = userRepository;
         this.watchListRepository = watchListRepository;
+        this.stockNameService = stockNameService;
     }
 
     // 주식 관심 등록
@@ -33,6 +35,8 @@ public class WatchListService {
         WatchList watchList = new WatchList();
         watchList.setUser(user);
         watchList.setStockCode(stockCode);
+        watchList.setStockName(stockNameService.getStockName(stockCode));
+
         watchListRepository.save(watchList);
     }
 
@@ -42,12 +46,13 @@ public class WatchListService {
         watchListRepository.deleteByUserAndStockCode(user, stockCode);
     }
 
+    // 관심 목록 조회
     public List<String> getWatchList(String userId) {
         User user = findUserById(userId);
 
         List<WatchList> watchList = watchListRepository.findByUser(user);
         return watchList.stream()
-                .map(WatchList::getStockCode)
+                .map(WatchList::getStockName) //주식명 목록
                 .collect(Collectors.toList());
     }
 

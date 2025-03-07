@@ -10,10 +10,6 @@ import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.UserStockRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
-
-import java.math.BigDecimal;
-import java.math.BigInteger;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,11 +20,15 @@ public class MockInvestmentService {
     private final UserRepository userRepository;
     private final UserStockRepository userStockRepository;
     private final UserTradeHistoryRepository userTradeHistoryRepository;
+    private final UserInfoService userInfoService;
+    private final StockNameService stockNameService;
 
-    public MockInvestmentService(UserRepository userRepository, UserStockRepository userStockRepository, UserTradeHistoryRepository userTradeHistoryRepository) {
+    public MockInvestmentService(UserRepository userRepository, UserStockRepository userStockRepository, UserTradeHistoryRepository userTradeHistoryRepository, UserInfoService userInfoService, StockNameService stockNameService) {
         this.userRepository = userRepository;
         this.userStockRepository = userStockRepository;
         this.userTradeHistoryRepository = userTradeHistoryRepository;
+        this.userInfoService = userInfoService;
+        this.stockNameService = stockNameService;
     }
 
     // 모의 투자(주식 매수)
@@ -37,9 +37,9 @@ public class MockInvestmentService {
         User user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("User Not Found"));
 
-        // 주식 현재가 가져오기(수정 필요)
-        BigDecimal currentPrice = new BigDecimal(BigInteger.TEN);
-        BigDecimal totalAmount = currentPrice.multiply(new BigDecimal(quantity));
+        // 주식 현재가 가져오기
+        Double currentPrice = getCurrentPrice(stockCode);
+        Double totalAmount = currentPrice*quantity;
         updateUserBalance(user, totalAmount, true);
 
         UserStock userStock = userStockRepository.findByUserAndStockCode(user, stockCode)
@@ -50,18 +50,20 @@ public class MockInvestmentService {
             userStock = new UserStock();
             userStock.setUser(user);
             userStock.setStockCode(stockCode);
-            // + 주식 이름 추가
+            userStock.setStockName(stockNameService.getStockName(stockCode));
             userStock.setQuantity(quantity);
             userStock.setAveragePurchasePrice(currentPrice);
         } else {
             // 이미 보유한 주식을 구매할 경우
             int newQuantity = userStock.getQuantity() + quantity;
-            BigDecimal newAveragePurchasePrice = (userStock.getAveragePurchasePrice().multiply(BigDecimal.valueOf(userStock.getQuantity()))
-                    .add(totalAmount)).divide(BigDecimal.valueOf(newQuantity), 2, RoundingMode.HALF_UP);
+            double newAveragePurchasePrice = ((userStock.getAveragePurchasePrice()
+                    * userStock.getQuantity()) + totalAmount)/newQuantity;
+            newAveragePurchasePrice = Math.round(newAveragePurchasePrice);
 
             userStock.setQuantity(newQuantity);
             userStock.setAveragePurchasePrice(newAveragePurchasePrice);
         }
+
         userStockRepository.save(userStock);
 
         UserTradeHistory history = createInvestmentHistory(user, stockCode, currentPrice,
@@ -83,9 +85,9 @@ public class MockInvestmentService {
             throw new RuntimeException("Insufficient stock quantity");
         }
 
-        // + 주식 현재가 가져오기(수정)
-        BigDecimal currentPrice = new BigDecimal(BigInteger.TEN);
-        BigDecimal totalAmount = currentPrice.multiply(new BigDecimal(quantity));
+        // 주식 현재가 가져오기
+        Double currentPrice = userInfoService.getCurrentPrice(stockCode);
+        Double totalAmount = currentPrice*quantity;
 
         updateUserBalance(user, totalAmount, false);
 
@@ -114,26 +116,31 @@ public class MockInvestmentService {
                 .collect(Collectors.toList());
     }
 
+    // 현재 주가 조회
+    private Double getCurrentPrice(String stockCode) {
+        return userInfoService.getCurrentPrice(stockCode);
+    }
+
     // 잔액 업데이트
-    private void updateUserBalance(User user, BigDecimal amount, boolean isBuying) {
+    private void updateUserBalance(User user, Double amount, boolean isBuying) {
         if (isBuying) {
             if (user.getBalance().compareTo(amount) < 0) {
                 throw new RuntimeException("Not enough balance");
             }
-            user.setBalance(user.getBalance().subtract(amount));
+            user.setBalance(user.getBalance()-amount);
         } else {
-            user.setBalance(user.getBalance().add(amount));
+            user.setBalance(user.getBalance()+amount);
         }
         userRepository.save(user);
     }
 
     // 모의투자 내역 생성
-    private UserTradeHistory createInvestmentHistory(User user, String stockCode, BigDecimal currentPrice,
-                                                     int quantity, BigDecimal totalAmount, TransactionType type) {
+    private UserTradeHistory createInvestmentHistory(User user, String stockCode, Double currentPrice,
+                                                     int quantity, Double totalAmount, TransactionType type) {
         UserTradeHistory history = new UserTradeHistory();
         history.setUser(user);
         history.setStockCode(stockCode);
-        // 주식 이름 설정 로직 추가
+        history.setStockName(stockNameService.getStockName(stockCode));
         history.setPurchaseDate(LocalDate.now());
         history.setPurchasePrice(currentPrice);
         history.setQuantity(quantity);

@@ -3,8 +3,6 @@ package com.capstone.withyou.dao;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
@@ -17,9 +15,9 @@ public class UserTradeHistory {
     private String stockCode;
     private String stockName;
     private LocalDate purchaseDate;
-    private BigDecimal purchasePrice;
+    private Double purchasePrice;
     private int quantity;
-    private BigDecimal totalAmount;
+    private Double totalAmount;
     private TransactionType transactionType;
 
     @ManyToOne

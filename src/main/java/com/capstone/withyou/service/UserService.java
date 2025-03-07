@@ -27,7 +27,7 @@ public class UserService {
         User user = new User();
         user.setUserId(userId);
         user.setPassword(encodedPassword);
-        user.setBalance(BigDecimal.ZERO);
+        user.setBalance(0.0);
         userRepository.save(user);
     }
 

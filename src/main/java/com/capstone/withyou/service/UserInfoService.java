@@ -2,6 +2,7 @@ package com.capstone.withyou.service;
 
 import com.capstone.withyou.dao.User;
 import com.capstone.withyou.dao.UserStock;
+import com.capstone.withyou.dto.StockCurPriceDTO;
 import com.capstone.withyou.dto.UserInfoDTO;
 import com.capstone.withyou.dto.UserStockDTO;
 import com.capstone.withyou.repository.UserRepository;
@@ -9,26 +10,20 @@ import com.capstone.withyou.repository.UserStockRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.util.List;
 import java.util.stream.Collectors;
-
-/*
- * 추가할 것
- * 1. 유저 보유 주식 실현 손익을 계산하는 로직
- * 2. 실시간 주식 정보 설정(현재 주가, 총 금액, 손익 금액, 수익률)
- */
 
 @Service
 @Transactional
 public class UserInfoService {
     private final UserRepository userRepository;
     private final UserStockRepository userStockRepository;
+    private final StockPriceService stockPriceService;
 
-    public UserInfoService(UserRepository userRepository, UserStockRepository userStockRepository) {
+    public UserInfoService(UserRepository userRepository, UserStockRepository userStockRepository, StockPriceService stockPriceService) {
         this.userRepository = userRepository;
         this.userStockRepository = userStockRepository;
+        this.stockPriceService = stockPriceService;
     }
 
     // 유저 정보 불러오기
@@ -39,7 +34,7 @@ public class UserInfoService {
     }
 
     // 유저 보유 금액 수정
-    public void updateUserBalance(String userId, BigDecimal balance) {
+    public void updateUserBalance(String userId, Double balance) {
         User user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         user.setBalance(balance);
@@ -53,36 +48,46 @@ public class UserInfoService {
 
         // 모든 주식 정보 삭제
         userStockRepository.deleteAllByUser(user);
-        user.setBalance(BigDecimal.ZERO);
+        user.setBalance(0.0);
         userRepository.save(user);
     }
 
-    // 유저 보유 주식 총 매입, 총 수익, 총 평가, 수익률, 실현 손익률 계산
+    // 유저 보유 주식 총 매입, 총 수익, 총 평가, 수익률 계산
     private void calculateUserStockInfo(UserInfoDTO userInfoDTO) {
-        BigDecimal totalPurchase=BigDecimal.ZERO;
-        BigDecimal totalProfit=BigDecimal.ZERO;
-        BigDecimal totalEvaluation=BigDecimal.ZERO;
+        double totalPurchase=0.0;
+        double totalProfit=0.0;
+        double totalEvaluation=0.0;
 
         for (UserStockDTO stock : userInfoDTO.getStocks()) {
-            totalPurchase= totalPurchase.add(stock.getAveragePurchasePrice()
-                    .multiply(BigDecimal.valueOf(stock.getQuantity()))); //총 매입 금액
-            totalProfit= totalProfit.add(stock.getProfitAmount()); //총 수익 금액
-            totalEvaluation= totalEvaluation.add(stock.getTotalAmount()); //총 평가 금액
+            totalPurchase+=stock.getAveragePurchasePrice()*stock.getQuantity(); //총 매입 금액
+            totalProfit+=stock.getProfitAmount();//총 손익 금액
+            totalEvaluation+=stock.getTotalAmount(); //총 평가 금액
         }
 
         userInfoDTO.setTotalPurchase(totalPurchase);
         userInfoDTO.setTotalProfit(totalProfit);
         userInfoDTO.setTotalEvaluation(totalEvaluation);
-        userInfoDTO.setTotalProfitRate(calculateProfitRate(totalPurchase, totalProfit));
-        // + 실현 손익 설정 수정 필요
-        userInfoDTO.setRealizedProfit(BigDecimal.ZERO);
+        userInfoDTO.setTotalProfitRate(calculateProfitRate(totalPurchase, totalProfit)); //수익률
     }
 
     // 수익률 계산
-    private BigDecimal calculateProfitRate(BigDecimal base, BigDecimal profit){
-        return base.compareTo(BigDecimal.ZERO)!=0
-                ? profit.divide(base, 4, RoundingMode.HALF_UP).multiply(new BigDecimal("100"))
-                : BigDecimal.ZERO;
+    private Double calculateProfitRate(Double base, Double profit) {
+        if (base == 0) return 0.0;
+        double rate = (profit / base) * 100;
+        return Double.parseDouble(String.format("%.1f", rate));
+    }
+
+    // 현재 주가 조회
+    public Double getCurrentPrice(String stockCode) {
+        StockCurPriceDTO stockCurPrice;
+        if (stockCode.chars().allMatch(Character::isDigit)) {
+            stockCurPrice = stockPriceService.getDomesticStockCurPrice(stockCode);
+        } else if (stockCode.chars().allMatch(Character::isLetterOrDigit)) {
+            stockCurPrice = stockPriceService.getOverseasStockCurPrice(stockCode);
+        } else {
+            throw new IllegalArgumentException("Invalid stock code");
+        }
+        return stockCurPrice.getStockPrice();
     }
 
     // UserInfo -> UserInfoDTO
@@ -112,12 +117,22 @@ public class UserInfoService {
         dto.setStockCode(userStock.getStockCode());
         dto.setStockName(userStock.getStockName());
         dto.setQuantity(userStock.getQuantity());
-        dto.setAveragePurchasePrice(userStock.getAveragePurchasePrice());
-        // 실시간 주식 정보 설정(현재 주가, 총 금액, 손익 금액, 수익률)
-        dto.setCurrentPrice(BigDecimal.ZERO);
-        dto.setTotalAmount(BigDecimal.ZERO);
-        dto.setProfitAmount(BigDecimal.ZERO);
-        dto.setProfitRate(BigDecimal.ZERO);
+
+        Double averagePurchasePrice = userStock.getAveragePurchasePrice();
+        dto.setAveragePurchasePrice(averagePurchasePrice);
+
+        // 실시간 주식 정보 설정(현재 주가, 총 금액, 손익 금액, 손익률)
+        Double currentPrice = getCurrentPrice(userStock.getStockCode());
+        dto.setCurrentPrice(currentPrice); //현재 주가
+
+        double totalAmount = currentPrice * userStock.getQuantity();
+        dto.setTotalAmount(totalAmount); //총 금액
+
+        double profitAmount = totalAmount - (averagePurchasePrice * userStock.getQuantity());
+        dto.setProfitAmount(profitAmount); //손익 금액
+
+        dto.setProfitRate(calculateProfitRate(averagePurchasePrice*userStock.getQuantity(), profitAmount)); //손익률
+
         return dto;
     }
 }
