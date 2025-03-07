@@ -5,8 +5,8 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Entity
-@Getter @Setter
-public class StockInfo {
+@Setter @Getter
+public class Stock {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -16,5 +16,5 @@ public class StockInfo {
     private String stockCode;
 
     @Column(nullable = false)
-    private String stockName;
+    private String StockName;
 }
