@@ -26,7 +26,7 @@ public class UserInfoController {
 
     // 보유 금액 업데이트
     @PutMapping("/{userId}/balance")
-    public ResponseEntity<Void> updateBalance(@PathVariable String userId, @RequestBody BigDecimal balance) {
+    public ResponseEntity<Void> updateBalance(@PathVariable String userId, @RequestBody Double balance) {
         userInfoService.updateUserBalance(userId, balance);
         return ResponseEntity.noContent().build();
     }

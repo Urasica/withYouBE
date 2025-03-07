@@ -5,7 +5,6 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Getter @Setter
@@ -14,8 +13,8 @@ public class UserTradeHistoryDTO {
     private String stockCode;
     private String stockName;
     private LocalDate purchaseDate;
-    private BigDecimal purchasePrice;
+    private Double purchasePrice;
     private int quantity;
-    private BigDecimal totalAmount;
+    private Double totalAmount;
     private TransactionType transactionType;
 }

@@ -33,6 +33,7 @@ dependencies {
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
     implementation("io.github.resilience4j:resilience4j-ratelimiter:2.2.0")
     implementation("io.github.resilience4j:resilience4j-reactor:2.2.0")
+    implementation("org.apache.commons:commons-csv:1.10.0")
 
     compileOnly("org.projectlombok:lombok")
     annotationProcessor("org.projectlombok:lombok")

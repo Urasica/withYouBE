@@ -3,8 +3,6 @@ package com.capstone.withyou.dao;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.math.BigDecimal;
 import java.util.List;
 
 @Entity
@@ -16,7 +14,7 @@ public class User {
     @Column(nullable = false)
     private String password;
 
-    private BigDecimal balance;
+    private Double balance;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<UserStock> stocks;
