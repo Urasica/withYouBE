@@ -52,7 +52,7 @@ public class WatchListService {
 
         List<WatchList> watchList = watchListRepository.findByUser(user);
         return watchList.stream()
-                .map(WatchList::getStockName) //주식명 목록
+                .map(WatchList::getStockCode) //주식코드 목록
                 .collect(Collectors.toList());
     }
 

@@ -4,6 +4,7 @@ import com.capstone.withyou.Manager.AccessTokenManager;
 import com.capstone.withyou.dto.StockCurPriceDTO;
 import com.capstone.withyou.dto.StockPriceDTO;
 import com.capstone.withyou.dto.StockPriceDayDTO;
+import com.capstone.withyou.dto.WatchListStockPriceDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -418,6 +419,9 @@ public class StockPriceService {
         return stockPrice;
     }
 
+    /**
+     * 해외 주식 현재가 조회
+     */
     public StockCurPriceDTO getOverseasStockCurPrice(String stockCode) {
         String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + "NOW";
         try {
@@ -448,6 +452,110 @@ public class StockPriceService {
                         outputNode.get("last").asDouble(),  // 주식 현재가
                         outputNode.get("diff").asDouble(),  // 전일 대비 가격
                         outputNode.get("rate").asDouble()   // 전일 대비율
+                );
+            } else {
+                throw new RuntimeException("해외 주식 데이터 형식 오류: " + rootNode.toPrettyString());
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("JSON 파싱 오류: " + e.getMessage(), e);
+        }
+
+        try {
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 60, TimeUnit.MINUTES);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+
+        return stockPrice;
+    }
+
+    /**
+     * 관심 종목 국내 주식 현재가 조회
+     */
+    public WatchListStockPriceDTO getDomesticWatchListStockCurPrice(String stockCode) {
+        String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + "WatchList";
+        try {
+            String cachedData = redisTemplate.opsForValue().get(cacheKey);
+
+            if (cachedData != null) {
+                return objectMapper.readValue(cachedData, new TypeReference<>() {});
+            }
+        } catch (Exception e) {
+            // Redis 연결 오류 로그
+            System.err.println("Redis 연결 오류: " + e.getMessage());
+        }
+
+        String url = "/uapi/domestic-stock/v1/quotations/inquire-price"
+                + "?FID_COND_MRKT_DIV_CODE=J"
+                + "&FID_INPUT_ISCD=" + stockCode;
+
+        String response = fetchStockData(url, "FHKST01010100").block();
+
+        WatchListStockPriceDTO stockPrice = null;
+        try {
+            JsonNode rootNode = objectMapper.readTree(response);
+            JsonNode outputNode = rootNode.path("output");
+
+            stockPrice = new WatchListStockPriceDTO(
+                    stockCode,
+                    "주식명 코드 수정",
+                    outputNode.get("stck_prpr").asText(), // 주식 현재가
+                    outputNode.get("prdy_vrss").asText(), // 전일 대비 가격
+                    outputNode.get("prdy_ctrt").asText(),  // 전일 대비율
+                    outputNode.get("acml_vol").asText(),
+                    outputNode.get("prdy_vrss_vol_rate").asText()
+            );
+        } catch (Exception e) {
+            throw new RuntimeException("JSON 파싱 오류: " + e.getMessage(), e);
+        }
+
+        try {
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 60, TimeUnit.MINUTES);
+        } catch (JsonProcessingException e) {
+            e.printStackTrace();
+        }
+
+        return stockPrice;
+    }
+
+    /**
+     * 관심 종목 해외 주식 현재가 조회
+     */
+    public WatchListStockPriceDTO getOverseasStockWatchListStockCurPrice(String stockCode) {
+        String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + "WatchList";
+        try {
+            String cachedData = redisTemplate.opsForValue().get(cacheKey);
+
+            if (cachedData != null) {
+                return objectMapper.readValue(cachedData, new TypeReference<>() {});
+            }
+        } catch (Exception e) {
+            // Redis 연결 오류 로그
+            System.err.println("Redis 연결 오류: " + e.getMessage());
+        }
+
+        String url = "/uapi/overseas-price/v1/quotations/price"
+                + "?AUTH="
+                + "&EXCD=NAS"
+                + "&SYMB=" + stockCode;
+
+        String response = fetchStockData(url, "HHDFS00000300").block();
+
+        WatchListStockPriceDTO stockPrice = null;
+        try {
+            JsonNode rootNode = objectMapper.readTree(response);
+            JsonNode outputNode = rootNode.path("output");
+
+            if (outputNode.isObject()) {
+                stockPrice = new WatchListStockPriceDTO(
+                        stockCode,
+                        "주식명 코드 수정",
+                        outputNode.get("last").asText(),  // 주식 현재가
+                        outputNode.get("diff").asText(),  // 전일 대비 가격
+                        outputNode.get("rate").asText(),   // 전일 대비율
+                        outputNode.get("tvol").asText(),
+                        outputNode.get("tamt").asText()
                 );
             } else {
                 throw new RuntimeException("해외 주식 데이터 형식 오류: " + rootNode.toPrettyString());

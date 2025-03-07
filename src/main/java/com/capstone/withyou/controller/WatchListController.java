@@ -1,10 +1,16 @@
 package com.capstone.withyou.controller;
 
 import com.capstone.withyou.dto.WatchListDTO;
+import com.capstone.withyou.dto.WatchListStockPriceDTO;
+import com.capstone.withyou.service.StockNameService;
+import com.capstone.withyou.service.StockPriceService;
 import com.capstone.withyou.service.WatchListService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @RestController
@@ -12,9 +18,15 @@ import java.util.List;
 public class WatchListController {
 
     private final WatchListService watchListService;
+    private final StockPriceService stockPriceService;
+    private final StockNameService stockNameService; // 임시
 
-    public WatchListController(WatchListService watchListService) {
+    public WatchListController(WatchListService watchListService,
+                               StockPriceService stockPriceService,
+                               StockNameService stockNameService) {
         this.watchListService = watchListService;
+        this.stockPriceService = stockPriceService;
+        this.stockNameService = stockNameService;
     }
 
     // 관심 등록
@@ -33,7 +45,22 @@ public class WatchListController {
 
     // 관심 목록 조회
     @GetMapping("/{userId}")
-    public ResponseEntity<List<String>> getWatchList(@PathVariable String userId) {
-        return ResponseEntity.ok(watchListService.getWatchList(userId));
+    public ResponseEntity<List<WatchListStockPriceDTO>> getWatchList(@PathVariable String userId) {
+        List<String> stocks = watchListService.getWatchList(userId);
+        List<WatchListStockPriceDTO> stockPrices = new ArrayList<>();
+        for (String stockCode : stocks) {
+            if (stockCode.chars().allMatch(Character::isDigit)) {
+                WatchListStockPriceDTO stock = stockPriceService.getDomesticWatchListStockCurPrice(stockCode);
+                stock.setStockName(stockNameService.getStockName(stockCode));
+                stockPrices.add(stock);
+            } else if (stockCode.chars().allMatch(Character::isLetterOrDigit)) {
+                WatchListStockPriceDTO stock = stockPriceService.getOverseasStockWatchListStockCurPrice(stockCode);
+                stock.setStockName(stockNameService.getStockName(stockCode));
+                stockPrices.add(stock);
+            } else {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid stock code");
+            }
+        }
+        return ResponseEntity.ok(stockPrices);
     }
 }
