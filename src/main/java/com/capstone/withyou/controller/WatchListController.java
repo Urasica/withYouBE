@@ -2,8 +2,8 @@ package com.capstone.withyou.controller;
 
 import com.capstone.withyou.dto.WatchListDTO;
 import com.capstone.withyou.dto.WatchListStockPriceDTO;
-import com.capstone.withyou.service.StockNameService;
 import com.capstone.withyou.service.StockPriceService;
+import com.capstone.withyou.service.StockService;
 import com.capstone.withyou.service.WatchListService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,14 +19,14 @@ public class WatchListController {
 
     private final WatchListService watchListService;
     private final StockPriceService stockPriceService;
-    private final StockNameService stockNameService; // 임시
+    private final StockService stockService;
 
     public WatchListController(WatchListService watchListService,
                                StockPriceService stockPriceService,
-                               StockNameService stockNameService) {
+                               StockService stockService) {
         this.watchListService = watchListService;
         this.stockPriceService = stockPriceService;
-        this.stockNameService = stockNameService;
+        this.stockService = stockService;
     }
 
     // 관심 등록
@@ -51,11 +51,11 @@ public class WatchListController {
         for (String stockCode : stocks) {
             if (stockCode.chars().allMatch(Character::isDigit)) {
                 WatchListStockPriceDTO stock = stockPriceService.getDomesticWatchListStockCurPrice(stockCode);
-                stock.setStockName(stockNameService.getStockName(stockCode));
+                stock.setStockName(stockService.getStockName(stockCode));
                 stockPrices.add(stock);
             } else if (stockCode.chars().allMatch(Character::isLetterOrDigit)) {
                 WatchListStockPriceDTO stock = stockPriceService.getOverseasStockWatchListStockCurPrice(stockCode);
-                stock.setStockName(stockNameService.getStockName(stockCode));
+                stock.setStockName(stockService.getStockName(stockCode));
                 stockPrices.add(stock);
             } else {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid stock code");
