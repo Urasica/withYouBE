@@ -16,5 +16,5 @@ public class Stock {
     private String stockCode;
 
     @Column(nullable = false)
-    private String StockName;
+    private String stockName;
 }

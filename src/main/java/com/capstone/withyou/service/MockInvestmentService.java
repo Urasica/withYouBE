@@ -21,14 +21,14 @@ public class MockInvestmentService {
     private final UserStockRepository userStockRepository;
     private final UserTradeHistoryRepository userTradeHistoryRepository;
     private final UserInfoService userInfoService;
-    private final StockNameService stockNameService;
+    private final StockService stockService;
 
-    public MockInvestmentService(UserRepository userRepository, UserStockRepository userStockRepository, UserTradeHistoryRepository userTradeHistoryRepository, UserInfoService userInfoService, StockNameService stockNameService) {
+    public MockInvestmentService(UserRepository userRepository, UserStockRepository userStockRepository, UserTradeHistoryRepository userTradeHistoryRepository, UserInfoService userInfoService, StockService stockService) {
         this.userRepository = userRepository;
         this.userStockRepository = userStockRepository;
         this.userTradeHistoryRepository = userTradeHistoryRepository;
         this.userInfoService = userInfoService;
-        this.stockNameService = stockNameService;
+        this.stockService = stockService;
     }
 
     // 모의 투자(주식 매수)
@@ -50,7 +50,7 @@ public class MockInvestmentService {
             userStock = new UserStock();
             userStock.setUser(user);
             userStock.setStockCode(stockCode);
-            userStock.setStockName(stockNameService.getStockName(stockCode));
+            userStock.setStockName(stockService.getStockName(stockCode));
             userStock.setQuantity(quantity);
             userStock.setAveragePurchasePrice(currentPrice);
         } else {
@@ -140,7 +140,7 @@ public class MockInvestmentService {
         UserTradeHistory history = new UserTradeHistory();
         history.setUser(user);
         history.setStockCode(stockCode);
-        history.setStockName(stockNameService.getStockName(stockCode));
+        history.setStockName(stockService.getStockName(stockCode));
         history.setPurchaseDate(LocalDate.now());
         history.setPurchasePrice(currentPrice);
         history.setQuantity(quantity);

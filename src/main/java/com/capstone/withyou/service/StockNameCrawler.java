@@ -12,15 +12,7 @@ import java.nio.charset.StandardCharsets;
 public class StockNameCrawler {
 
     public String crawlStockName(String stockCode) {
-        String url;
-
-        if (stockCode.chars().allMatch(Character::isDigit)) {
-            url = "https://m.stock.naver.com/domestic/stock/" + stockCode + "/total";
-        } else if (stockCode.chars().allMatch(Character::isLetterOrDigit)) {
-            url = "https://m.stock.naver.com/worldstock/stock/" + stockCode + ".O/total";
-        } else {
-            throw new IllegalArgumentException("유효하지 않은 주식 코드입니다.");
-        }
+        String url = "https://m.stock.naver.com/worldstock/stock/" + stockCode + ".O/total";
 
         try {
             Document doc = Jsoup.connect(url)
@@ -32,9 +24,12 @@ public class StockNameCrawler {
 
             if (titleMetaTag != null) {
                 String stockName = titleMetaTag.attr("content");
-                stockName = stockName.replace(" - 네이버페이 증권", "");
 
-                System.out.println(stockName);
+                // 정확한 종목명만 추출
+                if (stockName.contains(" - ")) {
+                    stockName = stockName.split(" - ")[0]; // " - " 기준으로 문자열 분리
+                }
+
                 return new String(stockName.getBytes(StandardCharsets.UTF_8), StandardCharsets.UTF_8);
 
             } else {
@@ -46,3 +41,4 @@ public class StockNameCrawler {
         }
     }
 }
+
