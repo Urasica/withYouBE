@@ -22,6 +22,12 @@ FROM openjdk:17-jdk-slim
 # 작업 디렉토리 설정
 WORKDIR /app
 
+# Python 설치
+RUN apt-get update && apt-get install -y python3 python3-pip && ln -s /usr/bin/python3 /usr/bin/python
+
+# finance-datareader 설치
+RUN pip3 install -U finance-datareader
+
 # 환경변수 설정 (docker-compose 환경에서만 redis 호스트를 설정)
 ARG REDIS_HOST=redis
 ENV REDIS_HOST=$REDIS_HOST
@@ -32,6 +38,9 @@ RUN ln -sf /usr/share/zoneinfo/Asia/Seoul /etc/localtime && echo "Asia/Seoul" > 
 
 # Gradle 빌드된 JAR 파일을 복사
 COPY --from=build /app/build/libs/*.jar app.jar
+
+# Python 코드 복사
+COPY --from=build /app/src/main/java/com/capstone/withyou/python /app/python
 
 # 포트 열기
 EXPOSE 8080

@@ -507,7 +507,7 @@ public class StockPriceService {
                     outputNode.get("prdy_vrss_vol_rate").asText()
             );
         } catch (Exception e) {
-            throw new RuntimeException("JSON 파싱 오류: " + e.getMessage(), e);
+            return new WatchListStockPriceDTO();
         }
 
         try {
@@ -558,11 +558,11 @@ public class StockPriceService {
                         outputNode.get("tamt").asText()
                 );
             } else {
-                throw new RuntimeException("해외 주식 데이터 형식 오류: " + rootNode.toPrettyString());
+                return new WatchListStockPriceDTO();
             }
 
         } catch (Exception e) {
-            throw new RuntimeException("JSON 파싱 오류: " + e.getMessage(), e);
+            return new WatchListStockPriceDTO();
         }
 
         try {

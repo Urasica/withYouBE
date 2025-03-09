@@ -20,7 +20,7 @@ public class PythonScriptService {
 
     public List<Stock> executePythonScript() throws IOException, InterruptedException {
 
-        ProcessBuilder processBuilder = new ProcessBuilder("python", "src/main/java/com/capstone/withyou/python/stock.py");
+        ProcessBuilder processBuilder = new ProcessBuilder("python", "/app/python/stock.py");
         Process process = processBuilder.start();
 
         List<Stock> stockList = getStocks(process);
