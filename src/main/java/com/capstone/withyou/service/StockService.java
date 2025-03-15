@@ -1,10 +1,12 @@
 package com.capstone.withyou.service;
 
 import com.capstone.withyou.dao.Stock;
+import com.capstone.withyou.dto.StockDTO;
 import com.capstone.withyou.repository.StockRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -36,5 +38,19 @@ public class StockService {
     public String getStockName(String stockCode){
         Stock stock = stockRepository.findByStockCode(stockCode);
         return stock.getStockName();
+    }
+
+    // 주식(코드 및 이름) 리스트 조회
+    public List<StockDTO> getStocks(){
+        List<Stock> stockList = stockRepository.findAll();
+
+        List<StockDTO> stockDTOList = new ArrayList<>();
+        for (Stock stock : stockList) {
+            StockDTO dto = new StockDTO();
+            dto.setStockCode(stock.getStockCode());
+            dto.setStockName(stock.getStockName());
+            stockDTOList.add(dto);
+        }
+        return stockDTOList;
     }
 }
