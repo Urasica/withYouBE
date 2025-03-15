@@ -6,6 +6,7 @@ import com.capstone.withyou.dto.StockInfoDTO;
 import com.capstone.withyou.repository.StockInfoRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -14,6 +15,7 @@ import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 
+@Slf4j
 @Service
 public class StockInfoService {
     private final StockInfoRepository stockInfoRepository;
@@ -90,16 +92,20 @@ public class StockInfoService {
                 stock.setEps(outputNode.get("eps").asText());
                 stock.setBps(outputNode.get("bps").asText());
                 stock.setLastUpdated(LocalDateTime.now());
+
+                stockInfoRepository.save(stock);
+                return convertToDto(stock);
             } else {
-                throw new RuntimeException("데이터 형식 오류: " + rootNode.toPrettyString());
+                log.error("데이터 형식 오류: {}", rootNode.toPrettyString());
             }
 
         } catch (Exception e) {
-            throw new RuntimeException("JSON 파싱 오류: " + e.getMessage(), e);
+            log.error("JSON 파싱 오류: {}", e.getMessage(), e);
         }
 
-        stockInfoRepository.save(stock);
-        return convertToDto(stock);
+        StockInfoDTO defaultDto = new StockInfoDTO();
+        defaultDto.setStockCode(stockCode);
+        return defaultDto;
     }
 
     public StockInfoDTO getOverseasStockInfo(String stockCode) {
@@ -139,16 +145,20 @@ public class StockInfoService {
                 stock.setEps(outputNode.get("epsx").asText());
                 stock.setBps(outputNode.get("bpsx").asText());
                 stock.setLastUpdated(LocalDateTime.now());
+
+                stockInfoRepository.save(stock);
+                return convertToDto(stock);
             } else {
-                throw new RuntimeException("데이터 형식 오류: " + rootNode.toPrettyString());
+                log.error("데이터 형식 오류: {}", rootNode.toPrettyString());
             }
 
         } catch (Exception e) {
-            throw new RuntimeException("JSON 파싱 오류: " + e.getMessage(), e);
+            log.error("JSON 파싱 오류: {}", e.getMessage(), e);
         }
 
-        stockInfoRepository.save(stock);
-        return convertToDto(stock);
+        StockInfoDTO defaultDto = new StockInfoDTO();
+        defaultDto.setStockCode(stockCode);
+        return defaultDto;
     }
 
     private StockInfoDTO convertToDto(StockInfo stockInfo) {

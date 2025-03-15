@@ -120,6 +120,9 @@ public class StockPriceController {
         return ResponseEntity.ok(prices);
     }
 
+    /*
+     분봉 조회
+     */
     @GetMapping("/prices-today/{stockCode}")
     public ResponseEntity<List<StockPriceDayDTO>> getStockPricesToday(
             @PathVariable String stockCode,
@@ -146,6 +149,9 @@ public class StockPriceController {
         return ResponseEntity.ok(prices);
     }
 
+    /*
+     현재가 조회
+     */
     @GetMapping("/current-price")
     public ResponseEntity<StockCurPriceDTO> getCurrentPrice(@RequestParam String stockCode) {
         StockCurPriceDTO stockCurPrice;
@@ -156,6 +162,10 @@ public class StockPriceController {
             stockCurPrice = stockPriceService.getOverseasStockCurPrice(stockCode);
         } else {
             // 숫자와 알파벳 이외의 문자가 포함된 경우
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid stock code");
+        }
+
+        if (stockCurPrice == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid stock code");
         }
 

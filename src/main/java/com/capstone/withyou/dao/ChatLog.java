@@ -1,9 +1,6 @@
 package com.capstone.withyou.dao;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
+import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -13,14 +10,24 @@ import java.time.LocalDate;
 
 @Entity
 @Getter
-@Setter
-@AllArgsConstructor
 @NoArgsConstructor
+@Table(name = "chat_log", indexes = {
+        @Index(name = "idx_user_date_id", columnList = "userName, date, id")
+})
 public class ChatLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private long id;
+    @Setter
     private String message;
+    @Setter
     private LocalDate date;
+    @Setter
     private String userName;
+
+    public ChatLog(String userName, LocalDate now, String message) {
+        this.userName = userName;
+        this.message = message;
+        this.date = now;
+    }
 }
