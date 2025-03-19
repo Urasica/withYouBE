@@ -5,11 +5,13 @@ import com.capstone.withyou.dao.WatchList;
 import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.WatchListRepository;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Service
 @Transactional
 public class WatchListService {
@@ -17,12 +19,6 @@ public class WatchListService {
     private final UserRepository userRepository;
     private final WatchListRepository watchListRepository;
     private final StockService stockService;
-
-    public WatchListService(UserRepository userRepository, WatchListRepository watchListRepository, StockService stockService) {
-        this.userRepository = userRepository;
-        this.watchListRepository = watchListRepository;
-        this.stockService = stockService;
-    }
 
     // 주식 관심 등록
     public void addToWatchList(String userId, String stockCode){

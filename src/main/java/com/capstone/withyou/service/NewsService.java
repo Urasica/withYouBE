@@ -8,6 +8,7 @@ import com.capstone.withyou.repository.NewsRepository;
 import com.capstone.withyou.repository.StockPredictionRepository;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Service
 @Transactional
 public class NewsService {
@@ -46,12 +48,6 @@ public class NewsService {
     private final NewsRepository newsRepository;
     private final StockPredictionRepository stockPredictionRepository;
     private final ChatGptService chatGptService;
-
-    public NewsService(NewsRepository newsRepository, StockPredictionRepository stockPredictionRepository, ChatGptService chatGptService) {
-        this.newsRepository = newsRepository;
-        this.stockPredictionRepository = stockPredictionRepository;
-        this.chatGptService = chatGptService;
-    }
 
     @Getter @Setter
     @AllArgsConstructor

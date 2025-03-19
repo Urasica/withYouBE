@@ -34,7 +34,7 @@ public class MockInvestmentController {
 
     // 모의 투자 내역 조회
     @GetMapping("/history/{userId}")
-    public ResponseEntity<List<UserTradeHistoryDTO>> getUserInvestmentHistory(@PathVariable String userId){
-        return ResponseEntity.ok(mockInvestmentService.getInvestmentHistory(userId));
+    public ResponseEntity<List<UserTradeHistoryDTO>> getUserTradeHistory(@PathVariable String userId){
+        return ResponseEntity.ok(mockInvestmentService.getTradeHistory(userId));
     }
 }

@@ -9,27 +9,20 @@ import com.capstone.withyou.repository.UserTradeHistoryRepository;
 import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.UserStockRepository;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Service
 public class MockInvestmentService {
 
     private final UserRepository userRepository;
     private final UserStockRepository userStockRepository;
     private final UserTradeHistoryRepository userTradeHistoryRepository;
-    private final UserInfoService userInfoService;
     private final StockService stockService;
-
-    public MockInvestmentService(UserRepository userRepository, UserStockRepository userStockRepository, UserTradeHistoryRepository userTradeHistoryRepository, UserInfoService userInfoService, StockService stockService) {
-        this.userRepository = userRepository;
-        this.userStockRepository = userStockRepository;
-        this.userTradeHistoryRepository = userTradeHistoryRepository;
-        this.userInfoService = userInfoService;
-        this.stockService = stockService;
-    }
 
     // 모의 투자(주식 매수)
     @Transactional
@@ -40,6 +33,7 @@ public class MockInvestmentService {
         // 주식 현재가 가져오기
         Double currentPrice = getCurrentPrice(stockCode);
         Double totalAmount = currentPrice*quantity;
+
         updateUserBalance(user, totalAmount, true);
 
         UserStock userStock = userStockRepository.findByUserAndStockCode(user, stockCode)
@@ -66,7 +60,7 @@ public class MockInvestmentService {
 
         userStockRepository.save(userStock);
 
-        UserTradeHistory history = createInvestmentHistory(user, stockCode, currentPrice,
+        UserTradeHistory history = createTradeHistory(user, stockCode, currentPrice,
                 quantity, totalAmount, TransactionType.BUY);
         userTradeHistoryRepository.save(history);
     }
@@ -86,7 +80,7 @@ public class MockInvestmentService {
         }
 
         // 주식 현재가 가져오기
-        Double currentPrice = userInfoService.getCurrentPrice(stockCode);
+        Double currentPrice = getCurrentPrice(stockCode);
         Double totalAmount = currentPrice*quantity;
 
         updateUserBalance(user, totalAmount, false);
@@ -100,25 +94,25 @@ public class MockInvestmentService {
             userStockRepository.save(userStock);
         }
 
-        UserTradeHistory history = createInvestmentHistory(user, stockCode, currentPrice,
+        UserTradeHistory history = createTradeHistory(user, stockCode, currentPrice,
                 quantity, totalAmount, TransactionType.SELL);
         userTradeHistoryRepository.save(history);
     }
 
     // 모의 투자 내역 조회
-    public List<UserTradeHistoryDTO> getInvestmentHistory(String userId) {
+    public List<UserTradeHistoryDTO> getTradeHistory(String userId) {
         User user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("User Not Found"));
 
         List<UserTradeHistory> histories = userTradeHistoryRepository.findByUser(user);
         return histories.stream()
-                .map(this::convertToUserInvestmentHistoryDTO)
+                .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     // 현재 주가 조회
     private Double getCurrentPrice(String stockCode) {
-        return userInfoService.getCurrentPrice(stockCode);
+        return stockService.getCurrentPrice(stockCode);
     }
 
     // 잔액 업데이트
@@ -135,8 +129,8 @@ public class MockInvestmentService {
     }
 
     // 모의투자 내역 생성
-    private UserTradeHistory createInvestmentHistory(User user, String stockCode, Double currentPrice,
-                                                     int quantity, Double totalAmount, TransactionType type) {
+    private UserTradeHistory createTradeHistory(User user, String stockCode, Double currentPrice,
+                                                int quantity, Double totalAmount, TransactionType type) {
         UserTradeHistory history = new UserTradeHistory();
         history.setUser(user);
         history.setStockCode(stockCode);
@@ -150,7 +144,7 @@ public class MockInvestmentService {
     }
 
     // Entity -> DTO 변환
-    private UserTradeHistoryDTO convertToUserInvestmentHistoryDTO(UserTradeHistory history) {
+    private UserTradeHistoryDTO convertToDTO(UserTradeHistory history) {
         return new UserTradeHistoryDTO(
                 history.getStockCode(),
                 history.getStockName(),
