@@ -2,18 +2,15 @@ package com.capstone.withyou.service;
 
 import com.capstone.withyou.dao.Company;
 import com.capstone.withyou.repository.CompanyRepository;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+@RequiredArgsConstructor
 @Service
 public class CompanyService {
 
     private final CompanyRepository companyRepository;
     private final ChatGptService chatGptService;
-
-    public CompanyService(CompanyRepository companyRepository, ChatGptService chatGptService) {
-        this.companyRepository = companyRepository;
-        this.chatGptService = chatGptService;
-    }
 
     // 회사 설명 조회
     public String getCompanyDescription(String companyName) {

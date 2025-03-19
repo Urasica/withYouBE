@@ -1,6 +1,6 @@
 package com.capstone.withyou.controller;
 
-import com.capstone.withyou.dto.StockDTO;
+import com.capstone.withyou.dao.Stock;
 import com.capstone.withyou.service.StockService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +19,7 @@ public class StockController {
 
     // 주식 리스트 조회(검색 기능)
     @GetMapping("/stock-list")
-    public ResponseEntity<List<StockDTO>> getStockList(){
+    public ResponseEntity<List<Stock>> getStockList(){
         stockService.getStocks();
         return ResponseEntity.ok(stockService.getStocks());
     }

@@ -5,26 +5,24 @@ import com.capstone.withyou.dao.UserStock;
 import com.capstone.withyou.dto.StockCurPriceDTO;
 import com.capstone.withyou.dto.UserInfoDTO;
 import com.capstone.withyou.dto.UserStockDTO;
+import com.capstone.withyou.repository.StockRepository;
 import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.UserStockRepository;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Service
 @Transactional
 public class UserInfoService {
+
     private final UserRepository userRepository;
     private final UserStockRepository userStockRepository;
-    private final StockPriceService stockPriceService;
-
-    public UserInfoService(UserRepository userRepository, UserStockRepository userStockRepository, StockPriceService stockPriceService) {
-        this.userRepository = userRepository;
-        this.userStockRepository = userStockRepository;
-        this.stockPriceService = stockPriceService;
-    }
+    private final StockService stockService;
 
     // 유저 정보 불러오기
     public UserInfoDTO getUserInfo(String userId) {
@@ -77,19 +75,6 @@ public class UserInfoService {
         return Double.parseDouble(String.format("%.1f", rate));
     }
 
-    // 현재 주가 조회
-    public Double getCurrentPrice(String stockCode) {
-        StockCurPriceDTO stockCurPrice;
-        if (stockCode.chars().allMatch(Character::isDigit)) {
-            stockCurPrice = stockPriceService.getDomesticStockCurPrice(stockCode);
-        } else if (stockCode.chars().allMatch(Character::isLetterOrDigit)) {
-            stockCurPrice = stockPriceService.getOverseasStockCurPrice(stockCode);
-        } else {
-            throw new IllegalArgumentException("Invalid stock code");
-        }
-        return stockCurPrice.getStockPrice();
-    }
-
     // UserInfo -> UserInfoDTO
     private UserInfoDTO convertToUserInfoDTO(User user) {
         UserInfoDTO dto = new UserInfoDTO();
@@ -122,7 +107,7 @@ public class UserInfoService {
         dto.setAveragePurchasePrice(averagePurchasePrice);
 
         // 실시간 주식 정보 설정(현재 주가, 총 금액, 손익 금액, 손익률)
-        Double currentPrice = getCurrentPrice(userStock.getStockCode());
+        Double currentPrice = stockService.getCurrentPrice(userStock.getStockCode());
         dto.setCurrentPrice(currentPrice); //현재 주가
 
         double totalAmount = currentPrice * userStock.getQuantity();
