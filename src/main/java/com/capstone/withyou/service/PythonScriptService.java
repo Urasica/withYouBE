@@ -21,7 +21,7 @@ public class PythonScriptService {
     // 주식 리스트 가져오기
     public List<Stock> fetchStockListFromPython() throws IOException, InterruptedException {
 
-        Process process = runPythonScript("src/main/java/com/capstone/withyou/python/stock.py");
+        Process process = runPythonScript("stock.py");
         List<Stock> stockList = parseStockList(process);
 
         checkProcessSuccess(process);
@@ -32,7 +32,7 @@ public class PythonScriptService {
     public String fetchExchangeRateFromPython(){
 
         try {
-            Process process = runPythonScript("src/main/java/com/capstone/withyou/python/exchange_rate.py");
+            Process process = runPythonScript("exchange_rate.py");
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
 
             try (reader) {
@@ -45,8 +45,19 @@ public class PythonScriptService {
         }
     }
 
+    // os 분류
+    private String getPythonScriptPath(String scriptName) {
+        String os = System.getProperty("os.name").toLowerCase();
+        if (os.contains("win")) {
+            return "src/main/java/com/capstone/withyou/python/" + scriptName; // Windows
+        } else {
+            return "/app/python/" + scriptName; // Linux
+        }
+    }
+
     // 파이썬 코드 실행
-    private Process runPythonScript(String scriptPath) throws IOException {
+    private Process runPythonScript(String scriptName) throws IOException {
+        String scriptPath = getPythonScriptPath(scriptName);
         ProcessBuilder processBuilder = new ProcessBuilder("python", scriptPath);
         return processBuilder.start();
     }
