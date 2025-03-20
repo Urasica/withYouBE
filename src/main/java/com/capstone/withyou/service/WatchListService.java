@@ -8,8 +8,8 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -26,6 +26,10 @@ public class WatchListService {
 
         if (watchListRepository.findByUserAndStockCode(user, stockCode).isPresent()) {
             throw new RuntimeException("Stock already in watch list");
+        }
+
+        if (stockService.getStockName(stockCode) == null) {
+            throw new RuntimeException("Stock code not found");
         }
 
         WatchList watchList = new WatchList();
@@ -47,10 +51,30 @@ public class WatchListService {
         User user = findUserById(userId);
 
         List<WatchList> watchList = watchListRepository.findByUser(user);
-        return watchList.stream()
-                .map(WatchList::getStockCode) //주식코드 목록
-                .collect(Collectors.toList());
+        List<String> validStockCodes = new ArrayList<>();
+        List<WatchList> expiredWatchList = new ArrayList<>();
+
+        for (WatchList item : watchList) {
+            String stockCode = item.getStockCode();
+            if (isValidStockCode(stockCode)) {
+                validStockCodes.add(stockCode);
+            } else {
+                expiredWatchList.add(item);
+            }
+        }
+
+        // 만료된 항목들 삭제
+        if (!expiredWatchList.isEmpty()) {
+            watchListRepository.deleteAll(expiredWatchList);
+        }
+
+        return validStockCodes;
     }
+
+    private boolean isValidStockCode(String stockCode) {
+        return stockService.getStockName(stockCode) != null;
+    }
+
 
     // 사용자 조회
     private User findUserById(String userId) {

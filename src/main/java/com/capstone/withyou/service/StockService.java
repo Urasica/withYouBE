@@ -40,16 +40,16 @@ public class StockService {
     }
 
     // 종목명으로 종목코드 찾기
-    public String getStockCode(String stockName){
+    public String getStockCode(String stockName) {
         Stock stock = stockRepository.findByStockName(stockName);
-        return stock.getStockCode();
+        return stock != null ? stock.getStockCode() : null;
     }
 
     // 종목코드로 종목명 찾기
     public String getStockName(String stockCode){
         return stockRepository.findByStockCode(stockCode)
                 .map(Stock::getStockName)
-                .orElseThrow(() -> new NoSuchElementException("주식 코드에 해당하는 종목이 없습니다: " + stockCode));
+                .orElse(null);
     }
 
     // 주식(코드 및 이름) 리스트 조회

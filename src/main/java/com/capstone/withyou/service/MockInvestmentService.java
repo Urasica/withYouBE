@@ -30,6 +30,9 @@ public class MockInvestmentService {
         User user = userRepository.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("User Not Found"));
 
+        if(stockService.getStockName(stockCode) == null)
+            throw new RuntimeException("해당 주식은 상장폐지 또는 조회 불가능한 상태입니다.");
+
         // 주식 현재가 가져오기
         Double currentPrice = getCurrentPrice(stockCode);
         Double totalAmount = currentPrice*quantity;
@@ -73,6 +76,9 @@ public class MockInvestmentService {
 
         UserStock userStock = userStockRepository.findByUserAndStockCode(user, stockCode)
                 .orElseThrow(() -> new RuntimeException("stock not found in user's portfolio"));
+
+        if(stockService.getStockName(stockCode) == null)
+            throw new RuntimeException("해당 주식은 상장폐지 또는 조회 불가능한 상태입니다.");
 
         // 판매 수량 확인
         if(userStock.getQuantity() < quantity) {

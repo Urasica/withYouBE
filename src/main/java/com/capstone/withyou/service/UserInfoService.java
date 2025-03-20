@@ -96,7 +96,7 @@ public class UserInfoService {
                 .collect(Collectors.toList());
     }
 
-    // UserStock -> UserStockDTO
+    // UserStock -> UserStockDTO // 삭제된 주식 청산 처리 방법 추가
     private UserStockDTO convertToUserStockDTO(UserStock userStock) {
         UserStockDTO dto = new UserStockDTO();
         dto.setStockCode(userStock.getStockCode());
