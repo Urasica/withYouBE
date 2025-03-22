@@ -1,7 +1,9 @@
 package com.capstone.withyou.service;
 
+import com.capstone.withyou.dao.ExchangeRate;
 import com.capstone.withyou.dao.Stock;
 import com.capstone.withyou.dto.StockCurPriceDTO;
+import com.capstone.withyou.repository.ExchangeRateRepository;
 import com.capstone.withyou.repository.StockRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +21,7 @@ public class StockService {
     private final StockRepository stockRepository;
     private final PythonScriptService pythonScriptService;
     private final StockPriceService stockPriceService;
+    private final ExchangeRateRepository exchangeRateRepository;
 
     @Transactional
     // 주식 리스트 업데이트
@@ -69,10 +72,8 @@ public class StockService {
             stockCurPrice = stockPriceService.getOverseasStockCurPrice(stockCode);
 
             //환율 조회
-            double exchangeRate = Math.round(Double.parseDouble(
-                    pythonScriptService.fetchExchangeRateFromPython()) * 10000) / 10000.0;
-
-            currentPrice = Math.round(stockCurPrice.getStockPrice() * exchangeRate);
+            ExchangeRate exchangeRate = exchangeRateRepository.findFirstByOrderByIdDesc();
+            currentPrice = Math.round(stockCurPrice.getStockPrice() * exchangeRate.getExchangeRate());
 
         } else {
             throw new IllegalArgumentException("Invalid stock code");
