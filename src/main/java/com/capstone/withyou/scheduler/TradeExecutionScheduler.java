@@ -12,6 +12,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 
 @Component
 @RequiredArgsConstructor
@@ -23,6 +25,17 @@ public class TradeExecutionScheduler {
     @Scheduled(fixedRate = 60000) //60초 마다 실행
     @Transactional
     public void checkPriceAndTrade(){
+
+        // 거래 가능한 시간(오전 9:00 ~ 오후 7:00)
+        LocalDateTime now = LocalDateTime.now();
+        LocalTime marketOpen = LocalTime.of(9, 0);
+        LocalTime marketClose = LocalTime.of(19, 0);
+
+        if (now.toLocalTime().isBefore(marketOpen) || now.toLocalTime().isAfter(marketClose)) {
+            // 거래 시간대가 아니면 실행 안함
+            return;
+        }
+
         userReserveHistoryRepository.findAll()
                 .stream().filter(history -> history.getTransactionStatus()==TransactionStatus.WAITING)
                 .forEach(this::processTrade);
