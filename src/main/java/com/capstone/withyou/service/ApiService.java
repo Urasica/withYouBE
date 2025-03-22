@@ -3,7 +3,6 @@ package com.capstone.withyou.service;
 import com.capstone.withyou.dto.NewsDTO;
 import com.capstone.withyou.dto.StockInfoDTO;
 import com.capstone.withyou.utils.StockNameCorrector;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -13,21 +12,18 @@ public class ApiService {
     private final NewsService newsService;
     private final StockInfoService stockInfoService;
     private final StockPriceService stockPriceService;
-    private final StockRankingService stockRankingService;
+    private final StockRankingApiService stockRankingApiService;
     private final StockNameCorrector stockNameCorrector;
-
-    @Value("${api.open-ai}")
-    private String apiKey;
 
     public ApiService(NewsService newsService,
                       StockInfoService stockInfoService,
                       StockPriceService stockPriceService,
-                      StockRankingService stockRankingService,
+                      StockRankingApiService stockRankingApiService,
                       StockNameCorrector stockNameCorrector) {
         this.newsService = newsService;
         this.stockInfoService = stockInfoService;
         this.stockPriceService = stockPriceService;
-        this.stockRankingService = stockRankingService;
+        this.stockRankingApiService = stockRankingApiService;
         this.stockNameCorrector = stockNameCorrector;
     }
 
@@ -47,15 +43,15 @@ public class ApiService {
     }
 
     public String getRisingStocks(String scope, String rank) {
-        return "";
+        return stockRankingApiService.generateResponseChangeRate(scope, Integer.parseInt(rank), "상승률");
     }
 
     public String getFallingStocks(String scope, String rank) {
-        return "";
+        return stockRankingApiService.generateResponseChangeRate(scope, Integer.parseInt(rank), "하락률");
     }
 
     public String getTradeRankStocks(String scope, String rank) {
-        return "";
+        return stockRankingApiService.generateResponseChangeRate(scope, Integer.parseInt(rank), "거래량");
     }
 
     public String getNews(String stockName) {

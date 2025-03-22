@@ -77,16 +77,17 @@ public class MockInvestmentService {
         UserStock userStock = userStockRepository.findByUserAndStockCode(user, stockCode)
                 .orElseThrow(() -> new RuntimeException("stock not found in user's portfolio"));
 
-        if(stockService.getStockName(stockCode) == null)
-            throw new RuntimeException("해당 주식은 상장폐지 또는 조회 불가능한 상태입니다.");
-
         // 판매 수량 확인
         if(userStock.getQuantity() < quantity) {
             throw new RuntimeException("Insufficient stock quantity");
         }
 
         // 주식 현재가 가져오기
-        Double currentPrice = getCurrentPrice(stockCode);
+        Double currentPrice;
+        if(stockService.getStockName(stockCode) == null)
+            currentPrice = 0.0;
+        else
+            currentPrice = getCurrentPrice(stockCode);
         Double totalAmount = currentPrice*quantity;
 
         updateUserBalance(user, totalAmount, false);

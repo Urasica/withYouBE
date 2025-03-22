@@ -12,4 +12,7 @@ public interface StockRankOverseasFallRepository extends JpaRepository<StockRank
 
     @Query("SELECT s FROM StockRankOverseasFall s WHERE s.period = :period ORDER BY s.rank ASC")
     List<StockRankOverseasFall> findByPeriodOrderByRank(StockPeriod period);
+
+    @Query("SELECT s FROM StockRankOverseasFall s WHERE s.period = 'DAILY' AND s.rank = :rank")
+    StockRankOverseasFall findByRank(int rank);
 }

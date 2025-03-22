@@ -33,7 +33,7 @@ public class ChatBotService {
 
     private static final List<String> API_FUNCTIONS = List.of(
             "주식현재가 조회", "상승률 순위데이터", "하락률 순위데이터",
-            "거래량 순위데이터", "주식 종목 관련 뉴스", "주식 종목 상세정보"
+            "거래량 순위데이터", "주식 종목 관련 뉴스", "주식 종목 상세정보", "질문"
     );
 
     @Value("${api.open-ai}")
@@ -66,9 +66,9 @@ public class ChatBotService {
         ChatLog response = new ChatLog(userName, LocalDate.now(), "");
         String apiResponse = switch (result.getIntent()) {
             case "주식현재가 조회" -> apiService.getStockCurPrice(stockName);
-            case "주식 상승률 순위데이터" -> apiService.getRisingStocks(scope, rank);
-            case "주식 하락률 순위데이터" -> apiService.getFallingStocks(scope, rank);
-            case "주식 거래량 순위데이터" -> apiService.getTradeRankStocks(scope, rank);
+            case "상승률 순위데이터" -> apiService.getRisingStocks(scope, rank);
+            case "하락률 순위데이터" -> apiService.getFallingStocks(scope, rank);
+            case "거래량 순위데이터" -> apiService.getTradeRankStocks(scope, rank);
             case "주식 종목 관련 뉴스" -> apiService.getNews(stockName);
             case "주식 종목 상세정보" -> apiService.getStockInfo(stockName);
             case "질문" -> result.getParameters().get("answer");
@@ -97,8 +97,8 @@ public class ChatBotService {
                 + "가능한 API 목록: " + API_FUNCTIONS.toString()
                 + "응답은 JSON 형식으로 제공하세요. "
                 + "예시1: {\"intent\": \"주식현재가 조회\", \"parameters\": {\"stockName\": \"삼성전자\"}}, "
-                + "예시2: {\"intent\": \"질문\", \"parameters\": {\"answer\": \"(사용자의 질문에 대한 대답)\"}}, "
-                + "순위 데이터류 예시:  {\"intent\": \"상승률 순위데이터\", \"parameters\": {\"scope\": \"국내(또는 해외)\", \"rank\":\"1(국내:최대 30, 해외:최대 100)\"}"
+                + "예시2: {\"intent\": \"질문\", \"parameters\": {\"answer\": \"(사용자의 질문에 대한 자연스러운 대답)\"}}, "
+                + "예시3: {\"intent\": \"상승률 순위데이터\", \"parameters\": {\"scope\": \"국내(또는 해외)\", \"rank\":\"1(국내:최대 30, 해외:최대 100)\"}"
                 + "채팅: " + message;
 
         String gptResponse = callChatgptApi(prompt);

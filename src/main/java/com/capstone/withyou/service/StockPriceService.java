@@ -62,7 +62,7 @@ public class StockPriceService {
     }
 
     /**
-     * 국내 주식 시세 조회
+     * 국내 주식 기간별 시세 조회
      */
     public List<StockPriceDTO> getDomesticStockPricesByDay(String stockCode, String period) {
         String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + period;
@@ -130,7 +130,7 @@ public class StockPriceService {
 
         try {
             if (!stockPrices.isEmpty())
-                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 60, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 1, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -139,7 +139,7 @@ public class StockPriceService {
     }
 
     /**
-     * 해외 주식 시세 조회
+     * 해외 주식 기간별 시세 조회
      */
     public List<StockPriceDTO> getOverseasStockPriceByDay(String stockCode, String period) {
         String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + period;
@@ -217,7 +217,7 @@ public class StockPriceService {
 
         try {
             if (!stockPrices.isEmpty())
-                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 60, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 1, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -302,7 +302,7 @@ public class StockPriceService {
 
         try {
             if (!stockPrices.isEmpty())
-                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 3, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 1, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -386,7 +386,7 @@ public class StockPriceService {
 
         try {
             if (!stockPrices.isEmpty())
-                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 3, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 1, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -444,7 +444,7 @@ public class StockPriceService {
         }
 
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 60, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 1, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -502,7 +502,7 @@ public class StockPriceService {
         }
 
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 60, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 1, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -563,7 +563,7 @@ public class StockPriceService {
         }
 
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 60, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 1, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
             stockPrice = new WatchListStockPriceDTO();
@@ -621,7 +621,7 @@ public class StockPriceService {
         }
 
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 60, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 1, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             e.getMessage();
         }

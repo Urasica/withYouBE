@@ -56,7 +56,7 @@ public class StockInfoService {
 
     public StockInfoDTO getDomesticStockInfo(String stockCode) {
         StockInfo stock = stockInfoRepository.findByStockCode(stockCode).orElse(null);
-        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+        LocalDateTime oneHourAgo = LocalDateTime.now().minusMinutes(1);
 
         if(stock != null) {
             if (!stock.getLastUpdated().isBefore(oneHourAgo)) {
@@ -110,7 +110,7 @@ public class StockInfoService {
 
     public StockInfoDTO getOverseasStockInfo(String stockCode) {
         StockInfo stock = stockInfoRepository.findByStockCode(stockCode).orElse(null);
-        LocalDateTime oneHourAgo = LocalDateTime.now().minusHours(1);
+        LocalDateTime oneHourAgo = LocalDateTime.now().minusMinutes(1);
         if(stock != null) {
             if (!stock.getLastUpdated().isBefore(oneHourAgo)) {
                 return convertToDto(stock);

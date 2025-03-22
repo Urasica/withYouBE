@@ -2,10 +2,8 @@ package com.capstone.withyou.service;
 
 import com.capstone.withyou.dao.User;
 import com.capstone.withyou.dao.UserStock;
-import com.capstone.withyou.dto.StockCurPriceDTO;
 import com.capstone.withyou.dto.UserInfoDTO;
 import com.capstone.withyou.dto.UserStockDTO;
-import com.capstone.withyou.repository.StockRepository;
 import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.UserStockRepository;
 import jakarta.transaction.Transactional;
@@ -107,7 +105,11 @@ public class UserInfoService {
         dto.setAveragePurchasePrice(averagePurchasePrice);
 
         // 실시간 주식 정보 설정(현재 주가, 총 금액, 손익 금액, 손익률)
-        Double currentPrice = stockService.getCurrentPrice(userStock.getStockCode());
+        Double currentPrice;
+        if (stockService.getStockName(userStock.getStockCode()) != null)
+            currentPrice = userStock.getAveragePurchasePrice();
+        else
+            currentPrice = 0.0;
         dto.setCurrentPrice(currentPrice); //현재 주가
 
         double totalAmount = currentPrice * userStock.getQuantity();

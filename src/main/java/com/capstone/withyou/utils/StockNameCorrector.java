@@ -3,22 +3,27 @@ package com.capstone.withyou.utils;
 import com.capstone.withyou.dao.Stock;
 import com.capstone.withyou.repository.StockRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.List;;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class StockNameCorrector {
-    private final StockRepository stockRepository; // 종목명 & 코드 저장된 DB 접근
+    private final StockRepository stockRepository;
+    private final RedisTemplate<String, Object> redisTemplate;
+
+    private static final String STOCK_CACHE_KEY = "stock_list";
 
     @Autowired
-    public StockNameCorrector(StockRepository stockRepository) {
+    public StockNameCorrector(StockRepository stockRepository, RedisTemplate<String, Object> redisTemplate) {
         this.stockRepository = stockRepository;
+        this.redisTemplate = redisTemplate;
     }
 
     public String correctStockName(String userInput) {
-        // DB에서 모든 종목명 가져오기 (최대 1만 개)
-        List<Stock> stockList = stockRepository.findAll();
+        List<Stock> stockList = getStockListFromCache();
 
         double maxSimilarity = 0.0;
         String bestMatch = null;
@@ -27,12 +32,26 @@ public class StockNameCorrector {
             double similarity = calculateSimilarity(userInput, stock.getStockName());
             if (similarity > maxSimilarity) {
                 maxSimilarity = similarity;
-                bestMatch = stock.getStockCode(); // 종목 코드 반환
+                bestMatch = stock.getStockCode();
             }
         }
 
-        // 유사도가 일정 기준 이상이면 반환, 아니면 null
         return (maxSimilarity > 0.7) ? bestMatch : null;
+    }
+
+    private List<Stock> getStockListFromCache() {
+        // Redis에서 데이터 가져오기
+        Object cachedStockList = redisTemplate.opsForValue().get(STOCK_CACHE_KEY);
+
+        if (cachedStockList instanceof List<?>) {
+            return (List<Stock>) cachedStockList;
+        }
+
+        // Redis에 데이터가 없으면 DB에서 가져와 저장
+        List<Stock> stockList = stockRepository.findAll();
+        redisTemplate.opsForValue().set(STOCK_CACHE_KEY, stockList, 1, TimeUnit.HOURS); // 1시간 캐싱
+
+        return stockList;
     }
 
     private double calculateSimilarity(String str1, String str2) {
