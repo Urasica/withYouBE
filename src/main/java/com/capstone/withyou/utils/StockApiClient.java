@@ -26,7 +26,7 @@ public class StockApiClient {
     public String getData(String url, String tradeCode) {
         synchronized (lock) {
             long now = System.currentTimeMillis();
-            long delay = Math.max(0, lastRequestTime + 350 - now);
+            long delay = Math.max(0, lastRequestTime + 400 - now);
             if (delay > 0) {
                 try {
                     Thread.sleep(delay);
