@@ -1,15 +1,15 @@
 package com.capstone.withyou.service;
 
-import com.capstone.withyou.Manager.AccessTokenManager;
 import com.capstone.withyou.dao.*;
 import com.capstone.withyou.repository.*;
-import org.springframework.beans.factory.annotation.Value;
+import com.capstone.withyou.utils.StockApiClient;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.http.*;
 import com.fasterxml.jackson.databind.JsonNode;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -19,13 +19,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Service
+@Slf4j
+@RequiredArgsConstructor
 public class StockRankingService {
-
-    @Value("${api.kis.appkey}")
-    private String appKey;
-
-    @Value("${api.kis.appsecret}")
-    private String appSecret;
 
     private final StockRankDomesticRiseRepository stockRankDomesticRiseRepository;
     private final StockRankDomesticFallRepository stockRankDomesticFallRepository;
@@ -33,30 +29,10 @@ public class StockRankingService {
     private final StockRankOverseasRiseRepository stockRankOverseasRiseRepository;
     private final StockRankOverseasFallRepository stockRankOverseasFallRepository;
     private final StockRankOverseasTradeRepository stockRankOverseasTradeRepository;
-    private final WebClient webClient;
+    private final StockApiClient stockApiClient;
+    private final ObjectMapper objectMapper;
 
-
-    private final AccessTokenManager tokenManager;
     private static final int API_CALL_INTERVAL = 1000;
-
-
-    public StockRankingService(StockRankDomesticRiseRepository stockRankDomesticRiseRepository,
-                               AccessTokenManager tokenManager,
-                               StockRankDomesticFallRepository stockRankDomesticFallRepository,
-                               StockRankDomesticTradeRepository stockRankDomesticTradeRepository,
-                               StockRankOverseasRiseRepository stockRankOverseasRiseRepository,
-                               StockRankOverseasFallRepository stockRankOverseasFallRepository,
-                               StockRankOverseasTradeRepository stockRankOverseasTradeRepository,
-                               WebClient webClient) {
-        this.stockRankDomesticRiseRepository = stockRankDomesticRiseRepository;
-        this.tokenManager = tokenManager;
-        this.stockRankDomesticFallRepository = stockRankDomesticFallRepository;
-        this.stockRankDomesticTradeRepository = stockRankDomesticTradeRepository;
-        this.stockRankOverseasRiseRepository = stockRankOverseasRiseRepository;
-        this.stockRankOverseasFallRepository = stockRankOverseasFallRepository;
-        this.stockRankOverseasTradeRepository = stockRankOverseasTradeRepository;
-        this.webClient = webClient;
-    }
 
     @Transactional
     public void fetchAndSaveDailyStockRankings() {
@@ -74,7 +50,7 @@ public class StockRankingService {
             TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
             OverseasStockTradeRanking();
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(e.getMessage());
         }
     }
 
@@ -92,23 +68,8 @@ public class StockRankingService {
                 TimeUnit.MILLISECONDS.sleep(API_CALL_INTERVAL);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error(e.getMessage());
         }
-    }
-
-    private Mono<JsonNode> fetchStockData(String url, String tradeCode) {
-        return webClient.get()
-                .uri(url)
-                .headers(headers -> {
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-                    headers.set("appkey", appKey);
-                    headers.set("appsecret", appSecret);
-                    headers.set("tr_id", tradeCode);
-                    headers.set("custtype", "P");
-                })
-                .retrieve()
-                .bodyToMono(JsonNode.class);
     }
 
 
@@ -133,53 +94,58 @@ public class StockRankingService {
                 + "&fid_rsfl_rate1="
                 + "&fid_rsfl_rate2=";
 
-        JsonNode responseBody = fetchStockData(url, "FHPST01700000").block();
+        String response = stockApiClient.getData(url, "FHPST01700000");
 
-        if (responseBody != null) {
-            JsonNode rankings = responseBody.get("output");
+        if (response != null) {
+            try {
+                JsonNode responseBody = objectMapper.readTree(response);
+                JsonNode rankings = responseBody.get("output");
 
-            if (rankings != null) {
-                List<StockRank> stockList = new ArrayList<>();
-                for (JsonNode ranking : rankings) {
-                    StockRank StockRank = rankSortCode == 0 ? new StockRankDomesticRise() : new StockRankDomesticFall();
-                    StockRank.setStockCode(ranking.get("stck_shrn_iscd").asText());
-                    StockRank.setRank(ranking.get("data_rank").asInt());
-                    StockRank.setStockName(ranking.get("hts_kor_isnm").asText());
-                    StockRank.setCurrentPrice(ranking.get("stck_prpr").asInt());
-                    StockRank.setChangePrice(ranking.get("prdy_vrss").asInt());
-                    StockRank.setChangeRate(new BigDecimal(ranking.get("prdy_ctrt").asText()));
-                    StockRank.setTradeVolume(ranking.get("acml_vol").asLong());
-                    StockRank.setHighestPrice(ranking.get("stck_hgpr").asInt());
-                    StockRank.setLowestPrice(ranking.get("stck_lwpr").asInt());
-                    StockRank.setPeriod(period);
+                if (rankings != null) {
+                    List<StockRank> stockList = new ArrayList<>();
+                    for (JsonNode ranking : rankings) {
+                        StockRank StockRank = rankSortCode == 0 ? new StockRankDomesticRise() : new StockRankDomesticFall();
+                        StockRank.setStockCode(ranking.get("stck_shrn_iscd").asText());
+                        StockRank.setRank(ranking.get("data_rank").asInt());
+                        StockRank.setStockName(ranking.get("hts_kor_isnm").asText());
+                        StockRank.setCurrentPrice(ranking.get("stck_prpr").asInt());
+                        StockRank.setChangePrice(ranking.get("prdy_vrss").asInt());
+                        StockRank.setChangeRate(new BigDecimal(ranking.get("prdy_ctrt").asText()));
+                        StockRank.setTradeVolume(ranking.get("acml_vol").asLong());
+                        StockRank.setHighestPrice(ranking.get("stck_hgpr").asInt());
+                        StockRank.setLowestPrice(ranking.get("stck_lwpr").asInt());
+                        StockRank.setPeriod(period);
 
-                    stockList.add(StockRank);
-                }
-
-                // **기간별 기존 데이터만 삭제 후 저장**
-                if (rankSortCode == 0) {  // 상승률 저장
-                    List<StockRankDomesticRise> riseList = stockList.stream()
-                            .map(stock -> (StockRankDomesticRise) stock)
-                            .sorted(Comparator.comparing(StockRank::getChangeRate).reversed())
-                            .toList();
-
-                    for (int i = 0; i < riseList.size(); i++) {
-                        riseList.get(i).setRank(i + 1);
+                        stockList.add(StockRank);
                     }
-                    stockRankDomesticRiseRepository.deleteByPeriod(period);
-                    stockRankDomesticRiseRepository.saveAll(riseList);
-                } else {  // 하락률 저장
-                    List<StockRankDomesticFall> fallList = stockList.stream()
-                            .map(stock -> (StockRankDomesticFall) stock)
-                            .sorted(Comparator.comparing(StockRank::getChangeRate))
-                            .toList();
 
-                    for (int i = 0; i < fallList.size(); i++) {
-                        fallList.get(i).setRank(i + 1);
+                    // **기간별 기존 데이터만 삭제 후 저장**
+                    if (rankSortCode == 0) {  // 상승률 저장
+                        List<StockRankDomesticRise> riseList = stockList.stream()
+                                .map(stock -> (StockRankDomesticRise) stock)
+                                .sorted(Comparator.comparing(StockRank::getChangeRate).reversed())
+                                .toList();
+
+                        for (int i = 0; i < riseList.size(); i++) {
+                            riseList.get(i).setRank(i + 1);
+                        }
+                        stockRankDomesticRiseRepository.deleteByPeriod(period);
+                        stockRankDomesticRiseRepository.saveAll(riseList);
+                    } else {  // 하락률 저장
+                        List<StockRankDomesticFall> fallList = stockList.stream()
+                                .map(stock -> (StockRankDomesticFall) stock)
+                                .sorted(Comparator.comparing(StockRank::getChangeRate))
+                                .toList();
+
+                        for (int i = 0; i < fallList.size(); i++) {
+                            fallList.get(i).setRank(i + 1);
+                        }
+                        stockRankDomesticFallRepository.deleteByPeriod(period);
+                        stockRankDomesticFallRepository.saveAll(fallList);
                     }
-                    stockRankDomesticFallRepository.deleteByPeriod(period);
-                    stockRankDomesticFallRepository.saveAll(fallList);
                 }
+            } catch (JsonProcessingException e) {
+                log.error(e.getMessage());
             }
         }
     }
@@ -202,33 +168,38 @@ public class StockRankingService {
                 + "&FID_VOL_CNT="
                 + "&FID_INPUT_DATE_1=";
 
-        JsonNode responseBody = fetchStockData(url, "FHPST01710000").block();
+        String response = stockApiClient.getData(url, "FHPST01710000");
 
-        if (responseBody != null) {
-            JsonNode rankings = responseBody.get("output");
+        if (response != null) {
+            try {
+                JsonNode responseBody = objectMapper.readTree(response);
+                JsonNode rankings = responseBody.get("output");
 
-            if (rankings != null) {
-                List<StockRankDomesticTrade> stockList = new ArrayList<>();
-                for (JsonNode ranking : rankings) {
-                    StockRankDomesticTrade stock = new StockRankDomesticTrade();
-                    stock.setStockCode(ranking.get("mksc_shrn_iscd").asText());
-                    stock.setRank(ranking.get("data_rank").asInt());
-                    stock.setStockName(ranking.get("hts_kor_isnm").asText());
-                    stock.setCurrentPrice(ranking.get("stck_prpr").asInt());
-                    stock.setChangePrice(ranking.get("prdy_vrss").asInt());
-                    stock.setChangeRate(new BigDecimal(ranking.get("prdy_ctrt").asText()));
-                    stock.setTradeVolume(ranking.get("acml_vol").asLong());
-                    stock.setPrevTradeVolume(ranking.get("prdy_vol").asLong());
-                    stock.setListingShares(ranking.get("lstn_stcn").asLong());
-                    stock.setAvgTradeVolume(ranking.get("avrg_vol").asLong());
-                    stock.setTradeAmountTurnover(new BigDecimal(ranking.get("tr_pbmn_tnrt").asText()));
-                    stock.setAccumulatedTradeAmount(ranking.get("acml_tr_pbmn").asLong());
+                if (rankings != null) {
+                    List<StockRankDomesticTrade> stockList = new ArrayList<>();
+                    for (JsonNode ranking : rankings) {
+                        StockRankDomesticTrade stock = new StockRankDomesticTrade();
+                        stock.setStockCode(ranking.get("mksc_shrn_iscd").asText());
+                        stock.setRank(ranking.get("data_rank").asInt());
+                        stock.setStockName(ranking.get("hts_kor_isnm").asText());
+                        stock.setCurrentPrice(ranking.get("stck_prpr").asInt());
+                        stock.setChangePrice(ranking.get("prdy_vrss").asInt());
+                        stock.setChangeRate(new BigDecimal(ranking.get("prdy_ctrt").asText()));
+                        stock.setTradeVolume(ranking.get("acml_vol").asLong());
+                        stock.setPrevTradeVolume(ranking.get("prdy_vol").asLong());
+                        stock.setListingShares(ranking.get("lstn_stcn").asLong());
+                        stock.setAvgTradeVolume(ranking.get("avrg_vol").asLong());
+                        stock.setTradeAmountTurnover(new BigDecimal(ranking.get("tr_pbmn_tnrt").asText()));
+                        stock.setAccumulatedTradeAmount(ranking.get("acml_tr_pbmn").asLong());
 
-                    stockList.add(stock);
+                        stockList.add(stock);
+                    }
+
+                    stockRankDomesticTradeRepository.deleteAll();
+                    stockRankDomesticTradeRepository.saveAll(stockList);
                 }
-
-                stockRankDomesticTradeRepository.deleteAll();
-                stockRankDomesticTradeRepository.saveAll(stockList);
+            } catch (Exception e) {
+                log.error(e.getMessage());
             }
         }
     }
@@ -253,44 +224,49 @@ public class StockRankingService {
                 + "&VOL_RANG=1"
                 + "&KEYB=";
 
-        JsonNode responseBody = fetchStockData(url, "HHDFS76290000").block();
+        String response = stockApiClient.getData(url, "HHDFS76290000");
 
-        if (responseBody != null) {
-            JsonNode rankings = responseBody.get("output2");
+        if (response != null) {
+            try {
+                JsonNode responseBody = objectMapper.readTree(response);
+                JsonNode rankings = responseBody.get("output2");
 
-            if (rankings != null) {
-                List<StockRankOverseas> stockList = new ArrayList<>();
-                for (JsonNode ranking : rankings) {
-                    StockRankOverseas stock = rankSortCode==0 ? new StockRankOverseasFall() : new StockRankOverseasRise();
-                    stock.setStockCode(ranking.get("symb").asText());
-                    stock.setRank(ranking.get("rank").asInt());
-                    stock.setStockName(ranking.get("name").asText());
-                    stock.setStockNameEng(ranking.get("ename").asText());
-                    stock.setCurrentPrice(new BigDecimal(ranking.get("last").asText()).doubleValue());
-                    stock.setChangePrice(new BigDecimal(ranking.get("diff").asText()).doubleValue());
-                    stock.setChangeRate(new BigDecimal(ranking.get("rate").asText().trim().replaceAll("\\s+", "")));
-                    stock.setTradeVolume(ranking.get("tvol").asLong());
-                    stock.setExcd(ranking.get("excd").asText());
-                    stock.setPeriod(period);
+                if (rankings != null) {
+                    List<StockRankOverseas> stockList = new ArrayList<>();
+                    for (JsonNode ranking : rankings) {
+                        StockRankOverseas stock = rankSortCode == 0 ? new StockRankOverseasFall() : new StockRankOverseasRise();
+                        stock.setStockCode(ranking.get("symb").asText());
+                        stock.setRank(ranking.get("rank").asInt());
+                        stock.setStockName(ranking.get("name").asText());
+                        stock.setStockNameEng(ranking.get("ename").asText());
+                        stock.setCurrentPrice(new BigDecimal(ranking.get("last").asText()).doubleValue());
+                        stock.setChangePrice(new BigDecimal(ranking.get("diff").asText()).doubleValue());
+                        stock.setChangeRate(new BigDecimal(ranking.get("rate").asText().trim().replaceAll("\\s+", "")));
+                        stock.setTradeVolume(ranking.get("tvol").asLong());
+                        stock.setExcd(ranking.get("excd").asText());
+                        stock.setPeriod(period);
 
-                    stockList.add(stock);
+                        stockList.add(stock);
+                    }
+
+                    if (rankSortCode == 0) { // 하락률 저장
+                        List<StockRankOverseasFall> list = stockList.stream()
+                                .map(stock -> (StockRankOverseasFall) stock)
+                                .toList();
+
+                        stockRankOverseasFallRepository.deleteByPeriod(period);
+                        stockRankOverseasFallRepository.saveAll(list);
+                    } else { // 상승률 저장
+                        List<StockRankOverseasRise> list = stockList.stream()
+                                .map(stock -> (StockRankOverseasRise) stock)
+                                .toList();
+
+                        stockRankOverseasRiseRepository.deleteByPeriod(period);
+                        stockRankOverseasRiseRepository.saveAll(list);
+                    }
                 }
-
-                if(rankSortCode == 0) { // 하락률 저장
-                    List<StockRankOverseasFall> list = stockList.stream()
-                            .map(stock -> (StockRankOverseasFall) stock)
-                            .toList();
-
-                    stockRankOverseasFallRepository.deleteByPeriod(period);
-                    stockRankOverseasFallRepository.saveAll(list);
-                } else { // 상승률 저장
-                    List<StockRankOverseasRise> list = stockList.stream()
-                            .map(stock -> (StockRankOverseasRise) stock)
-                            .toList();
-
-                    stockRankOverseasRiseRepository.deleteByPeriod(period);
-                    stockRankOverseasRiseRepository.saveAll(list);
-                }
+            } catch (Exception e) {
+                log.error(e.getMessage());
             }
         }
     }
@@ -309,30 +285,35 @@ public class StockRankingService {
                 + "&VOL_RANG=1"
                 + "&KEYB=";
 
-        JsonNode responseBody = fetchStockData(url, "HHDFS76310010").block();
+        String response = stockApiClient.getData(url, "HHDFS76310010");
 
-        if (responseBody != null) {
-            JsonNode rankings = responseBody.get("output2");
+        if (response != null) {
+            try {
+                JsonNode responseBody = objectMapper.readTree(response);
+                JsonNode rankings = responseBody.get("output2");
 
-            if (rankings != null) {
-                List<StockRankOverseasTrade> stockList = new ArrayList<>();
-                for (JsonNode ranking : rankings) {
-                    StockRankOverseasTrade stock = new StockRankOverseasTrade();
-                    stock.setStockCode(ranking.get("symb").asText());
-                    stock.setRank(ranking.get("rank").asInt());
-                    stock.setStockName(ranking.get("name").asText());
-                    stock.setStockNameEng(ranking.get("ename").asText());
-                    stock.setCurrentPrice(new BigDecimal(ranking.get("last").asText()).doubleValue());
-                    stock.setChangePrice(new BigDecimal(ranking.get("diff").asText()).doubleValue());
-                    stock.setChangeRate(new BigDecimal(ranking.get("rate").asText().trim().replaceAll("\\s+", "")));
-                    stock.setTradeVolume(ranking.get("tvol").asLong());
-                    stock.setExcd(ranking.get("excd").asText());
+                if (rankings != null) {
+                    List<StockRankOverseasTrade> stockList = new ArrayList<>();
+                    for (JsonNode ranking : rankings) {
+                        StockRankOverseasTrade stock = new StockRankOverseasTrade();
+                        stock.setStockCode(ranking.get("symb").asText());
+                        stock.setRank(ranking.get("rank").asInt());
+                        stock.setStockName(ranking.get("name").asText());
+                        stock.setStockNameEng(ranking.get("ename").asText());
+                        stock.setCurrentPrice(new BigDecimal(ranking.get("last").asText()).doubleValue());
+                        stock.setChangePrice(new BigDecimal(ranking.get("diff").asText()).doubleValue());
+                        stock.setChangeRate(new BigDecimal(ranking.get("rate").asText().trim().replaceAll("\\s+", "")));
+                        stock.setTradeVolume(ranking.get("tvol").asLong());
+                        stock.setExcd(ranking.get("excd").asText());
 
-                    stockList.add(stock);
+                        stockList.add(stock);
+                    }
+
+                    stockRankOverseasTradeRepository.deleteAll();
+                    stockRankOverseasTradeRepository.saveAll(stockList);
                 }
-
-                stockRankOverseasTradeRepository.deleteAll();
-                stockRankOverseasTradeRepository.saveAll(stockList);
+            } catch (Exception e) {
+                log.error(e.getMessage());
             }
         }
     }

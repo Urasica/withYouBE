@@ -1,22 +1,18 @@
 package com.capstone.withyou.service;
 
-import com.capstone.withyou.Manager.AccessTokenManager;
 import com.capstone.withyou.dto.StockCurPriceDTO;
 import com.capstone.withyou.dto.StockPriceDTO;
 import com.capstone.withyou.dto.StockPriceDayDTO;
 import com.capstone.withyou.dto.WatchListStockPriceDTO;
+import com.capstone.withyou.utils.StockApiClient;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
-
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -25,41 +21,15 @@ import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class StockPriceService {
     private static final String STOCK_CACHE_PREFIX = "stock:";
 
-    @Value("${api.kis.appkey}")
-    private String appKey;
-
-    @Value("${api.kis.appsecret}")
-    private String appSecret;
-
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
-    private final AccessTokenManager tokenManager;
-    private final WebClient webClient;
+    private final StockApiClient stockApiClient;
 
-    public StockPriceService(StringRedisTemplate redisTemplate, ObjectMapper objectMapper, AccessTokenManager tokenManager, WebClient webClient) {
-        this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
-        this.tokenManager = tokenManager;
-        this.webClient = webClient;
-    }
-
-    private Mono<String> fetchStockData(String url, String tradeCode) {
-        return webClient.get()
-                .uri(url)
-                .headers(headers -> {
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-                    headers.set("appkey", appKey);
-                    headers.set("appsecret", appSecret);
-                    headers.set("tr_id", tradeCode);
-                    headers.set("custtype", "P");
-                })
-                .retrieve()
-                .bodyToMono(String.class);
-    }
+    private final int timeOut = 2;
 
     /**
      * 국내 주식 기간별 시세 조회
@@ -83,26 +53,7 @@ public class StockPriceService {
                 + "&FID_ORG_ADJ_PRC=0";
 
         List<StockPriceDTO> stockPrices = new ArrayList<>();
-        String response;
-        try {
-            response = webClient.get()
-                    .uri(url)
-                    .headers(headers -> {
-                        headers.setContentType(MediaType.APPLICATION_JSON);
-                        headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-                        headers.set("appkey", appKey);
-                        headers.set("appsecret", appSecret);
-                        headers.set("tr_id", "FHKST01010400");
-                        headers.set("tr_cont", "");
-                        headers.set("custtype", "P");
-                    })
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-        } catch (Exception e) {
-            log.error("API 요청 실패 ({}): {}", stockCode, e.getMessage(), e);
-            return stockPrices; // 빈 리스트 반환
-        }
+        String response = stockApiClient.getData(url,"FHKST01010400" );
 
         try {
             JsonNode rootNode = objectMapper.readTree(response);
@@ -130,7 +81,7 @@ public class StockPriceService {
 
         try {
             if (!stockPrices.isEmpty())
-                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 1, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), timeOut, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -169,27 +120,7 @@ public class StockPriceService {
                 + "&MODP=1";
 
         List<StockPriceDTO> stockPrices = new ArrayList<>();
-        String response;
-        try {
-            response = webClient.get()
-                    .uri(url)
-                    .headers(headers -> {
-                        headers.setContentType(MediaType.APPLICATION_JSON);
-                        headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-                        headers.set("appkey", appKey);
-                        headers.set("appsecret", appSecret);
-                        headers.set("tr_id", "HHDFS76240000");
-                        headers.set("tr_cont", "");
-                        headers.set("custtype", "P");
-                    })
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-        } catch (Exception e) {
-            log.error("API 요청 실패 ({}): {}", stockCode, e.getMessage(), e);
-            return stockPrices; // 빈 리스트 반환
-        }
-
+        String response = stockApiClient.getData(url,"HHDFS76240000");
 
         try {
             JsonNode rootNode = objectMapper.readTree(response);
@@ -217,7 +148,7 @@ public class StockPriceService {
 
         try {
             if (!stockPrices.isEmpty())
-                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 1, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), timeOut, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -254,26 +185,7 @@ public class StockPriceService {
                 + "&FID_FAKE_TICK_INCU_YN=N";
 
         List<StockPriceDayDTO> stockPrices = new ArrayList<>();
-        String response;
-        try {
-            response = webClient.get()
-                    .uri(url)
-                    .headers(headers -> {
-                        headers.setContentType(MediaType.APPLICATION_JSON);
-                        headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-                        headers.set("appkey", appKey);
-                        headers.set("appsecret", appSecret);
-                        headers.set("tr_id", "FHKST03010230");
-                        headers.set("tr_cont", "");
-                        headers.set("custtype", "P");
-                    })
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-        } catch (Exception e) {
-            log.error("API 요청 실패 ({}): {}", stockCode, e.getMessage(), e);
-            return stockPrices; // 빈 리스트 반환
-        }
+        String response = stockApiClient.getData(url,"FHKST03010230" );
 
         try {
             JsonNode rootNode = objectMapper.readTree(response);
@@ -302,7 +214,7 @@ public class StockPriceService {
 
         try {
             if (!stockPrices.isEmpty())
-                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 1, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), timeOut, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -338,26 +250,7 @@ public class StockPriceService {
                 + "&KEYB=";
 
         List<StockPriceDayDTO> stockPrices = new ArrayList<>();
-        String response;
-        try {
-            response = webClient.get()
-                    .uri(url)
-                    .headers(headers -> {
-                        headers.setContentType(MediaType.APPLICATION_JSON);
-                        headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-                        headers.set("appkey", appKey);
-                        headers.set("appsecret", appSecret);
-                        headers.set("tr_id", "HHDFS76950200");
-                        headers.set("tr_cont", "");
-                        headers.set("custtype", "P");
-                    })
-                    .retrieve()
-                    .bodyToMono(String.class)
-                    .block();
-        } catch (Exception e) {
-            log.error("API 요청 실패 ({}): {}", stockCode, e.getMessage(), e);
-            return stockPrices;
-        }
+        String response = stockApiClient.getData(url,"HHDFS76950200");
 
         try {
             JsonNode rootNode = objectMapper.readTree(response);
@@ -386,7 +279,7 @@ public class StockPriceService {
 
         try {
             if (!stockPrices.isEmpty())
-                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), 1, TimeUnit.MINUTES);
+                redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrices), timeOut, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -414,13 +307,7 @@ public class StockPriceService {
                 + "&FID_INPUT_ISCD=" + stockCode;
 
         StockCurPriceDTO stockPrice;
-        String response;
-        try {
-            response = fetchStockData(url, "FHKST01010300").block();
-        } catch (Exception e) {
-            log.error("API 요청 실패 ({}): {}", stockCode, e.getMessage(), e);
-            return null;
-        }
+        String response = stockApiClient.getData(url,"FHKST01010300");
 
         try {
             JsonNode rootNode = objectMapper.readTree(response);
@@ -444,7 +331,7 @@ public class StockPriceService {
         }
 
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 1, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), timeOut, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -473,17 +360,12 @@ public class StockPriceService {
                 + "&SYMB=" + stockCode;
 
         StockCurPriceDTO stockPrice;
-        String response;
-        try {
-            response = fetchStockData(url, "HHDFS00000300").block();
-        } catch (Exception e) {
-            log.error("API 요청 실패 ({}): {}", stockCode, e.getMessage(), e);
-            return null;
-        }
+        String response = stockApiClient.getData(url,"HHDFS00000300");
 
         try {
             JsonNode rootNode = objectMapper.readTree(response);
             JsonNode outputNode = rootNode.path("output");
+            System.out.println(rootNode);
 
             if (outputNode.isObject()) {
                 stockPrice = new StockCurPriceDTO(
@@ -502,7 +384,7 @@ public class StockPriceService {
         }
 
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 1, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), timeOut, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
         }
@@ -530,16 +412,7 @@ public class StockPriceService {
                 + "&FID_INPUT_ISCD=" + stockCode;
 
         WatchListStockPriceDTO stockPrice;
-        String response;
-        try {
-            response = fetchStockData(url, "FHKST01010100").block();
-        } catch (Exception e) {
-            log.error("API 요청 실패 ({}): {}", stockCode, e.getMessage(), e);
-            stockPrice = new WatchListStockPriceDTO();
-            stockPrice.setStockCode(stockCode);
-            stockPrice.setStockName("주식 코드 잘못됨");
-            return stockPrice;
-        }
+        String response = stockApiClient.getData(url,"FHKST01010100");
 
         try {
             JsonNode rootNode = objectMapper.readTree(response);
@@ -563,7 +436,7 @@ public class StockPriceService {
         }
 
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 1, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), timeOut, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
             log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
             stockPrice = new WatchListStockPriceDTO();
@@ -576,7 +449,7 @@ public class StockPriceService {
     /**
      * 관심 종목 해외 주식 현재가 조회
      */
-    public WatchListStockPriceDTO getOverseasStockWatchListStockCurPrice(String stockCode) {
+    public WatchListStockPriceDTO getOverseasWatchListStockCurPrice(String stockCode) {
         String cacheKey = STOCK_CACHE_PREFIX + stockCode + ":" + "WatchList";
         try {
             String cachedData = redisTemplate.opsForValue().get(cacheKey);
@@ -594,7 +467,7 @@ public class StockPriceService {
                 + "&EXCD=NAS"
                 + "&SYMB=" + stockCode;
 
-        String response = fetchStockData(url, "HHDFS00000300").block();
+        String response = stockApiClient.getData(url,"HHDFS00000300");
 
         WatchListStockPriceDTO stockPrice;
         try {
@@ -607,7 +480,7 @@ public class StockPriceService {
                         "",
                         outputNode.get("last").asText(),  // 주식 현재가
                         outputNode.get("diff").asText(),  // 전일 대비 가격
-                        outputNode.get("rate").asText(),   // 전일 대비율
+                        outputNode.get("rate").asText(),  // 전일 대비율
                         outputNode.get("tvol").asText(),
                         outputNode.get("tamt").asText()
                 );
@@ -621,9 +494,11 @@ public class StockPriceService {
         }
 
         try {
-            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), 1, TimeUnit.MINUTES);
+            redisTemplate.opsForValue().set(cacheKey, objectMapper.writeValueAsString(stockPrice), timeOut, TimeUnit.MINUTES);
         } catch (JsonProcessingException e) {
-            e.getMessage();
+            log.error("Redis 캐싱 실패 ({}): {}", stockCode, e.getMessage(), e);
+            stockPrice = new WatchListStockPriceDTO();
+            return stockPrice;
         }
 
         return stockPrice;

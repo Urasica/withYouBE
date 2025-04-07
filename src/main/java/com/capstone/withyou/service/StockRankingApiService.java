@@ -19,21 +19,22 @@ public class StockRankingApiService {
     private final StockRankOverseasTradeRepository stockRankOverseasTradeRepository;
 
     public String generateResponseChangeRate(String scope, int rank, String metric) {
-        Object stock = null;
+        Object stock;
+
         if (scope.equals("국내")) {
-            if (metric.equals("상승률"))
-                stock = stockRankDomesticRiseRepository.findByRank(rank);
-            else if (metric.equals("하락률"))
-                stock = stockRankDomesticFallRepository.findByRank(rank);
-            else if (metric.equals("거래량"))
-                stock = stockRankDomesticTradeRepository.findByRank(rank);
+            stock = switch (metric) {
+                case "상승률" -> stockRankDomesticRiseRepository.findByRank(rank);
+                case "하락률" -> stockRankDomesticFallRepository.findByRank(rank);
+                case "거래량" -> stockRankDomesticTradeRepository.findByRank(rank);
+                default -> null;
+            };
         } else {
-            if (metric.equals("상승률"))
-                stock = stockRankOverseasRiseRepository.findByRank(rank);
-            else if (metric.equals("하락률"))
-                stock = stockRankOverseasFallRepository.findByRank(rank);
-            else if (metric.equals("거래량"))
-                stock = stockRankOverseasTradeRepository.findByRank(rank);
+            stock = switch (metric) {
+                case "상승률" -> stockRankOverseasRiseRepository.findByRank(rank);
+                case "하락률" -> stockRankOverseasFallRepository.findByRank(rank);
+                case "거래량" -> stockRankOverseasTradeRepository.findByRank(rank);
+                default -> null;
+            };
         }
 
         Map<String, Object> stockData = extractStockData(stock);

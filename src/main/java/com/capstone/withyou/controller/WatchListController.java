@@ -54,7 +54,7 @@ public class WatchListController {
                 stock.setStockName(stockService.getStockName(stockCode));
                 stockPrices.add(stock);
             } else if (stockCode.chars().allMatch(Character::isLetterOrDigit)) {
-                WatchListStockPriceDTO stock = stockPriceService.getOverseasStockWatchListStockCurPrice(stockCode);
+                WatchListStockPriceDTO stock = stockPriceService.getOverseasWatchListStockCurPrice(stockCode);
                 stock.setStockName(stockService.getStockName(stockCode));
                 stockPrices.add(stock);
             } else {
