@@ -5,6 +5,8 @@ import com.capstone.withyou.dao.User;
 import com.capstone.withyou.dao.UserTradeHistory;
 import com.capstone.withyou.dao.UserStock;
 import com.capstone.withyou.dto.UserTradeHistoryDTO;
+import com.capstone.withyou.exception.InsufficientException;
+import com.capstone.withyou.exception.NotFoundException;
 import com.capstone.withyou.repository.UserTradeHistoryRepository;
 import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.UserStockRepository;
@@ -28,10 +30,10 @@ public class MockInvestmentService {
     @Transactional
     public void buyStock(String userId, String stockCode, int quantity) {
         User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("User Not Found"));
+                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
 
         if(stockService.getStockName(stockCode) == null)
-            throw new RuntimeException("해당 주식은 상장폐지 또는 조회 불가능한 상태입니다.");
+            throw new NotFoundException("해당 주식은 상장폐지 또는 조회 불가능한 상태입니다.");
 
         // 주식 현재가 가져오기
         Double currentPrice = getCurrentPrice(stockCode);
@@ -72,14 +74,14 @@ public class MockInvestmentService {
     @Transactional
     public void sellStock(String userId, String stockCode, int quantity) {
         User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("User Not Found"));
+                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
 
         UserStock userStock = userStockRepository.findByUserAndStockCode(user, stockCode)
-                .orElseThrow(() -> new RuntimeException("stock not found in user's portfolio"));
+                .orElseThrow(()-> new NotFoundException("보유 중인 주식이 아닙니다."));
 
         // 판매 수량 확인
         if(userStock.getQuantity() < quantity) {
-            throw new RuntimeException("Insufficient stock quantity");
+            throw new InsufficientException("보유 수량 부족으로 매도할 수 없습니다.");
         }
 
         // 주식 현재가 가져오기
@@ -109,7 +111,7 @@ public class MockInvestmentService {
     // 모의 투자 내역 조회
     public List<UserTradeHistoryDTO> getTradeHistory(String userId) {
         User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("User Not Found"));
+                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
 
         List<UserTradeHistory> histories = userTradeHistoryRepository.findByUser(user);
         return histories.stream()
@@ -126,7 +128,7 @@ public class MockInvestmentService {
     private void updateUserBalance(User user, Double amount, boolean isBuying) {
         if (isBuying) {
             if (user.getBalance().compareTo(amount) < 0) {
-                throw new RuntimeException("Not enough balance");
+                throw new InsufficientException("보유 잔액이 부족합니다.");
             }
             user.setBalance(user.getBalance()-amount);
         } else {
