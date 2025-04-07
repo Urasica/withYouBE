@@ -4,6 +4,7 @@ import com.capstone.withyou.dao.User;
 import com.capstone.withyou.dao.UserStock;
 import com.capstone.withyou.dto.UserInfoDTO;
 import com.capstone.withyou.dto.UserStockDTO;
+import com.capstone.withyou.exception.NotFoundException;
 import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.UserStockRepository;
 import jakarta.transaction.Transactional;
@@ -25,14 +26,14 @@ public class UserInfoService {
     // 유저 정보 불러오기
     public UserInfoDTO getUserInfo(String userId) {
         User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
         return convertToUserInfoDTO(user);
     }
 
     // 유저 보유 금액 수정
     public void updateUserBalance(String userId, Double balance) {
         User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
         user.setBalance(balance);
         userRepository.save(user);
     }
@@ -40,7 +41,7 @@ public class UserInfoService {
     // 유저 보유 주식 초기화
     public void resetUserStock(String userId) {
         User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
 
         // 모든 주식 정보 삭제
         userStockRepository.deleteAllByUser(user);
@@ -107,7 +108,7 @@ public class UserInfoService {
         // 실시간 주식 정보 설정(현재 주가, 총 금액, 손익 금액, 손익률)
         Double currentPrice;
         if (stockService.getStockName(userStock.getStockCode()) != null)
-            currentPrice = userStock.getAveragePurchasePrice();
+            currentPrice = stockService.getCurrentPrice(userStock.getStockCode());
         else
             currentPrice = 0.0;
         dto.setCurrentPrice(currentPrice); //현재 주가

@@ -17,4 +17,7 @@ public class Stock {
 
     @Column(nullable = false)
     private String stockName;
+
+    @Column(length = 300)
+    private String category;
 }

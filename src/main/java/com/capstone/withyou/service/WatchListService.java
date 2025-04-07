@@ -2,6 +2,8 @@ package com.capstone.withyou.service;
 
 import com.capstone.withyou.dao.User;
 import com.capstone.withyou.dao.WatchList;
+import com.capstone.withyou.exception.NotFoundException;
+import com.capstone.withyou.exception.StockAlreadyInWatchListException;
 import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.WatchListRepository;
 import jakarta.transaction.Transactional;
@@ -25,11 +27,11 @@ public class WatchListService {
         User user = findUserById(userId);
 
         if (watchListRepository.findByUserAndStockCode(user, stockCode).isPresent()) {
-            throw new RuntimeException("Stock already in watch list");
+            throw new StockAlreadyInWatchListException("주식이 이미 관심 목록에 있습니다.");
         }
 
         if (stockService.getStockName(stockCode) == null) {
-            throw new RuntimeException("Stock code not found");
+            throw new NotFoundException("해당 주식을 찾을 수 없습니다.");
         }
 
         WatchList watchList = new WatchList();
@@ -75,10 +77,9 @@ public class WatchListService {
         return stockService.getStockName(stockCode) != null;
     }
 
-
     // 사용자 조회
     private User findUserById(String userId) {
         return userRepository.findByUserId(userId)
-                .orElseThrow(() -> new RuntimeException("User Not Found"));
+                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
     }
 }
