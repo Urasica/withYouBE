@@ -15,12 +15,12 @@ import java.time.LocalTime;
 public class ExchangeRateScheduler {
 
     private final PythonScriptService pythonScriptService;
-    private final ExchangeRateRepository exchangeRateRepository;
+    private
+ final ExchangeRateRepository exchangeRateRepository;
 
     // 10분마다 실행
     @Scheduled(fixedRate = 10 * 60 * 1000)
     public void updateExchangeRate() {
-
         // 거래 가능한 시간(오전 9:00 ~ 오후 7:00)
         LocalDateTime now = LocalDateTime.now();
         LocalTime marketOpen = LocalTime.of(9, 0);

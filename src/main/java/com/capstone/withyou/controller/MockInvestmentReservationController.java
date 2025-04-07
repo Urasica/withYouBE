@@ -1,7 +1,7 @@
 package com.capstone.withyou.controller;
 
+import com.capstone.withyou.dao.UserReserveHistory;
 import com.capstone.withyou.dto.StockReserveRequestDTO;
-import com.capstone.withyou.dto.UserReserveHistoryDTO;
 import com.capstone.withyou.service.MockInvestmentReservationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -34,9 +34,16 @@ public class MockInvestmentReservationController {
         return ResponseEntity.ok("Reserved stock sold successfully");
     }
 
+    // 주식 예약 취소
+    @PostMapping("/history/{userId}/remove/{historyId}")
+    public ResponseEntity<Void> removeReserveHistory(@PathVariable String userId, @PathVariable Long historyId) {
+        mockInvestmentReservationService.removeReservation(userId, historyId);
+        return ResponseEntity.ok().build();
+    }
+
     // 주식 에약 내역 조회
     @GetMapping("/history/{userId}")
-    public ResponseEntity<List<UserReserveHistoryDTO>> getUserReserveHistory(@PathVariable String userId) {
+    public ResponseEntity<List<UserReserveHistory>> getUserReserveHistory(@PathVariable String userId) {
         return ResponseEntity.ok(mockInvestmentReservationService.getReserveHistory(userId));
     }
 }

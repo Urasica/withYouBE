@@ -3,6 +3,7 @@ package com.capstone.withyou.service;
 import com.capstone.withyou.dao.ExchangeRate;
 import com.capstone.withyou.dao.Stock;
 import com.capstone.withyou.dto.StockCurPriceDTO;
+import com.capstone.withyou.exception.NotFoundException;
 import com.capstone.withyou.repository.ExchangeRateRepository;
 import com.capstone.withyou.repository.StockRepository;
 import jakarta.transaction.Transactional;
@@ -10,7 +11,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -76,7 +76,7 @@ public class StockService {
             currentPrice = Math.round(stockCurPrice.getStockPrice() * exchangeRate.getExchangeRate());
 
         } else {
-            throw new IllegalArgumentException("Invalid stock code");
+            throw new NotFoundException("해당 주식을 찾을 수 없습니다.");
         }
         return currentPrice;
     }
