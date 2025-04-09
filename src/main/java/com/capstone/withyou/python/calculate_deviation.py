@@ -1,22 +1,20 @@
 import FinanceDataReader as fdr
-from concurrent.futures import ThreadPoolExecutor
-import numpy as np
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 import math
+from tqdm import tqdm
 
-# 나스닥 전체 주식 목록 가져오기
+# 나스닥 종목 리스트 가져오기
 df_nasdaq = fdr.StockListing("NASDAQ")
 symbols = df_nasdaq['Symbol'].tolist()
 
-# 수치 계산 함수
+# 종목 점수 계산 함수
 def get_stock_score(symbol):
     try:
-        df = fdr.DataReader(symbol)
+        df = fdr.DataReader(symbol, '2025-04-01')
         if len(df) < 2:
-            return symbol, None
+            return None
 
         latest = df.iloc[-1]
-        prev = df.iloc[-2]
-
         open_price = latest['Open']
         close_price = latest['Close']
         high = latest['High']
@@ -24,28 +22,12 @@ def get_stock_score(symbol):
         volume = latest['Volume']
         adj_close = latest['Adj Close']
 
-        # 등락률
         change = (close_price - open_price) / open_price
-
-        # 강한 마감 비율
-        if high != low:
-            close_strength = (close_price - low) / (high - low)
-        else:
-            close_strength = 0.5  # 변동 없는 날
-
-        # 변동성
+        close_strength = (close_price - low) / (high - low) if high != low else 0.5
         volatility = (high - low) / open_price
-
-        # 로그 거래량 (0 방지)
         log_volume = math.log(volume + 1)
+        adj_ratio = adj_close / close_price if close_price != 0 else 1
 
-        # 수익률 보정
-        if close_price != 0:
-            adj_ratio = adj_close / close_price
-        else:
-            adj_ratio = 1
-
-        # 가중치 조합
         score = (
             0.3 * change +
             0.2 * close_strength +
@@ -53,18 +35,35 @@ def get_stock_score(symbol):
             0.2 * log_volume / 15 +
             0.1 * adj_ratio
         )
+        return round(score, 4)
 
-        return symbol, round(score, 4)
+    except:
+        return None
 
-    except Exception:
-        return symbol, None
-
+# 배치 단위 지정
+BATCH_SIZE = 300
 results = {}
-with ThreadPoolExecutor(max_workers=10) as executor:
-    for symbol, score in executor.map(get_stock_score, symbols):
-        if score is not None:
-            results[symbol] = score
+
+# 전체 배치 반복
+for i in range(0, len(symbols), BATCH_SIZE):
+    batch = symbols[i:i+BATCH_SIZE]
+    with tqdm(total=len(batch), desc=f"배치 처리 중 ({i//BATCH_SIZE+1})") as pbar:
+        with ThreadPoolExecutor(max_workers=15) as executor:
+            future_to_symbol = {executor.submit(get_stock_score, symbol): symbol for symbol in batch}
+
+            for future in future_to_symbol:
+                symbol = future_to_symbol[future]
+                try:
+                    score = future.result(timeout=5)
+                    if score is not None:
+                        results[symbol] = score
+                except TimeoutError:
+                    pass
+                except Exception:
+                    pass
+                finally:
+                    pbar.update(1)
 
 # 결과 출력
-for symbol, score in list(results.items())[:]:
-    print(symbol, score)
+for symbol, score in sorted(results.items(), key=lambda x: x[1], reverse=True):
+    print(f"{symbol} {score:.4f}")

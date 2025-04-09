@@ -2,6 +2,7 @@ package com.capstone.withyou.controller;
 
 import com.capstone.withyou.dao.UserReserveHistory;
 import com.capstone.withyou.dto.StockReserveRequestDTO;
+import com.capstone.withyou.dto.UserReserveHistoryDTO;
 import com.capstone.withyou.service.MockInvestmentReservationService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -43,7 +44,7 @@ public class MockInvestmentReservationController {
 
     // 주식 에약 내역 조회
     @GetMapping("/history/{userId}")
-    public ResponseEntity<List<UserReserveHistory>> getUserReserveHistory(@PathVariable String userId) {
+    public ResponseEntity<List<UserReserveHistoryDTO>> getUserReserveHistory(@PathVariable String userId) {
         return ResponseEntity.ok(mockInvestmentReservationService.getReserveHistory(userId));
     }
 }
