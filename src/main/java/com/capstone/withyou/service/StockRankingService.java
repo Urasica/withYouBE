@@ -291,7 +291,7 @@ public class StockRankingService {
             try {
                 JsonNode responseBody = objectMapper.readTree(response);
                 JsonNode rankings = responseBody.get("output2");
-
+                System.out.println(responseBody);
                 if (rankings != null) {
                     List<StockRankOverseasTrade> stockList = new ArrayList<>();
                     for (JsonNode ranking : rankings) {

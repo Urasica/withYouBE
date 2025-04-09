@@ -313,12 +313,17 @@ public class StockPriceService {
             JsonNode rootNode = objectMapper.readTree(response);
             JsonNode outputNode = rootNode.path("output");
 
-            if (!outputNode.isArray()) {
+            if (!outputNode.isArray() || outputNode.isEmpty()) {
                 log.error("국내 주식 데이터 형식 오류: {}", rootNode.toPrettyString());
                 return null;
             }
 
             JsonNode latestNode = outputNode.get(0);  // 첫 번째 데이터
+
+            if (latestNode == null || latestNode.isNull()) {
+                log.error("국내 주식 데이터가 비어 있음: {}", rootNode.toPrettyString());
+                throw new RuntimeException("JSON 파싱 오류: latestNode가 null입니다");
+            }
 
             stockPrice = new StockCurPriceDTO(
                     latestNode.get("stck_prpr").asDouble(), // 주식 현재가

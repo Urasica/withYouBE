@@ -11,7 +11,7 @@ public interface StockRepository extends JpaRepository<Stock, String> {
     Optional<Stock> findByStockCode(String stockCode);
     Stock findByStockName(String stockName);
 
-    @Query(value = "SELECT * FROM Stock s WHERE s.stock_code REGEXP '^[A-Za-z]' ", nativeQuery = true)
+    @Query(value = "SELECT * FROM stock s WHERE s.stock_code REGEXP '^[A-Za-z]' ", nativeQuery = true)
     List<Stock> findNASDAQStocks();
 
 }

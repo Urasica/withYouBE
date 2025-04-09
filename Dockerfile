@@ -27,7 +27,7 @@ RUN apt-get update && apt-get install -y python3 python3-pip && ln -s /usr/bin/p
 
 # finance-datareader 설치
 RUN pip3 install -U finance-datareader
-RUN pip3 install -U numpy
+RUN pip3 install -U tqdm
 
 # 환경변수 설정 (docker-compose 환경에서만 redis 호스트를 설정)
 ARG REDIS_HOST=redis
