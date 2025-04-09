@@ -4,6 +4,7 @@ import com.capstone.withyou.dao.TransactionStatus;
 import com.capstone.withyou.dao.TransactionType;
 import com.capstone.withyou.dao.User;
 import com.capstone.withyou.dao.UserReserveHistory;
+import com.capstone.withyou.dto.UserReserveHistoryDTO;
 import com.capstone.withyou.exception.NotFoundException;
 import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.UserReserveHistoryRepository;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collector;
+import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
@@ -62,7 +65,7 @@ public class MockInvestmentReservationService {
     }
 
     // 주식 거래 예약 내역 조회
-    public List<UserReserveHistory> getReserveHistory(String userId) {
+    public List<UserReserveHistoryDTO> getReserveHistory(String userId) {
         User user = getUser(userId);
 
         List<UserReserveHistory> histories = userReserveHistoryRepository.findByUser(user);
@@ -77,7 +80,9 @@ public class MockInvestmentReservationService {
             }
         }
 
-        return validHistories;
+        return validHistories.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
     }
 
     // 주식 코드 유효한지 확인
@@ -98,6 +103,21 @@ public class MockInvestmentReservationService {
         history.setReserveDate(LocalDate.now());
         history.setTradeDate(null);
         return history;
+    }
+
+    // Entity -> DTO 변환
+    private UserReserveHistoryDTO convertToDTO(UserReserveHistory history) {
+        return new UserReserveHistoryDTO(
+                history.getId(),
+                history.getStockCode(),
+                history.getStockName(),
+                history.getQuantity(),
+                history.getTargetPrice(),
+                history.getTransactionType(),
+                history.getTransactionStatus(),
+                history.getReserveDate(),
+                history.getTradeDate()
+        );
     }
 
     private User getUser(String userId) {
