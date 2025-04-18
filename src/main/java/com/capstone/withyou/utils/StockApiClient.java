@@ -5,21 +5,20 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.resilience4j.ratelimiter.RateLimiter;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
-import org.springframework.http.HttpStatusCode;
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
 
 import java.util.function.Supplier;
 
 @RequiredArgsConstructor
 public class StockApiClient {
-    private final WebClient webClient;
+    private final RestTemplate restTemplate;
     private final RateLimiter rateLimiter;
-    private final AccessTokenManager tokenManager; // 인증 토큰 관리
+    private final AccessTokenManager tokenManager;
     private final String appKey;
     private final String appSecret;
 
+    private static String baseUrl = "https://openapi.koreainvestment.com:9443";
     private static long lastRequestTime = 0;
     private static final Object lock = new Object();
 
@@ -39,29 +38,25 @@ public class StockApiClient {
 
         Supplier<String> decorated = RateLimiter.decorateSupplier(rateLimiter, () -> {
             try {
-                String response = webClient.get()
-                        .uri(url)
-                        .headers(headers -> {
-                            headers.setContentType(MediaType.APPLICATION_JSON);
-                            headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-                            headers.set("appkey", appKey);
-                            headers.set("appsecret", appSecret);
-                            headers.set("tr_id", tradeCode);
-                            headers.set("custtype", "P");
-                        })
-                        .retrieve()
-                        .onStatus(HttpStatusCode::isError, clientResponse ->
-                                clientResponse.bodyToMono(String.class)
-                                        .flatMap(errorBody -> {
-                                            logMsg1(errorBody); // 실패한 경우 msg1 로그 출력
-                                            return Mono.error(new RuntimeException("API Error: " + errorBody));
-                                        })
-                        )
-                        .bodyToMono(String.class)
-                        .block();
+                HttpHeaders headers = new HttpHeaders();
+                headers.setContentType(MediaType.APPLICATION_JSON);
+                headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
+                headers.set("appkey", appKey);
+                headers.set("appsecret", appSecret);
+                headers.set("tr_id", tradeCode);
+                headers.set("custtype", "P");
 
-                logMsg1(response); // 성공한 경우에도 msg1 로그 출력
-                return response;
+                HttpEntity<String> entity = new HttpEntity<>(headers);
+                ResponseEntity<String> response = restTemplate.exchange(
+                        baseUrl+url,
+                        HttpMethod.GET,
+                        entity,
+                        String.class
+                );
+
+                String body = response.getBody();
+                logMsg1(body);
+                return body;
 
             } catch (Exception e) {
                 System.err.println("Request failed: " + e.getMessage());

@@ -29,7 +29,6 @@ dependencies {
     implementation("org.json:json:20231013")
     implementation("com.fasterxml.jackson.core:jackson-databind")
     implementation("org.springframework.boot:spring-boot-starter-data-redis")
-    implementation("org.springframework.boot:spring-boot-starter-webflux")
     implementation("io.github.resilience4j:resilience4j-spring-boot3:2.2.0")
     implementation("io.github.resilience4j:resilience4j-ratelimiter:2.2.0")
     implementation("io.github.resilience4j:resilience4j-reactor:2.2.0")

@@ -370,7 +370,6 @@ public class StockPriceService {
         try {
             JsonNode rootNode = objectMapper.readTree(response);
             JsonNode outputNode = rootNode.path("output");
-            System.out.println(rootNode);
 
             if (outputNode.isObject()) {
                 stockPrice = new StockCurPriceDTO(

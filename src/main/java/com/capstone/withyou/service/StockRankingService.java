@@ -78,7 +78,7 @@ public class StockRankingService {
      */
     @Transactional
     public void DomesticStockRankingChangeRate(int rankSortCode, StockPeriod period) {
-        String url = "https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/ranking/fluctuation"
+        String url = "/uapi/domestic-stock/v1/ranking/fluctuation"
                 + "?fid_cond_mrkt_div_code=J"
                 + "&fid_cond_scr_div_code=20170"
                 + "&fid_input_iscd=0000"
@@ -155,7 +155,7 @@ public class StockRankingService {
      */
     @Transactional
     public void DomesticStockRankingTradeVolume() {
-        String url = "https://openapi.koreainvestment.com:9443//uapi/domestic-stock/v1/quotations/volume-rank"
+        String url = "/uapi/domestic-stock/v1/quotations/volume-rank"
                 + "?FID_COND_MRKT_DIV_CODE=J"
                 + "&FID_COND_SCR_DIV_CODE=20171"
                 + "&FID_INPUT_ISCD=0000"
@@ -216,7 +216,7 @@ public class StockRankingService {
             case YEARLY -> 9;  // 1년
         };
 
-        String url = "https://openapi.koreainvestment.com:9443/uapi/overseas-stock/v1/ranking/updown-rate"
+        String url = "/uapi/overseas-stock/v1/ranking/updown-rate"
                 + "?AUTH="
                 + "&EXCD=NAS"
                 + "&GUBN=" + rankSortCode /*순위정렬 구분코드 1:상승율순 0:하락율순*/
@@ -276,7 +276,7 @@ public class StockRankingService {
      */
     @Transactional
     public void OverseasStockTradeRanking() {
-        String url = "https://openapi.koreainvestment.com:9443/uapi/overseas-stock/v1/ranking/updown-rate"
+        String url = "/uapi/overseas-stock/v1/ranking/updown-rate"
                 + "?AUTH="
                 + "&EXCD=NAS"
                 + "&NDAY=0"
@@ -291,7 +291,6 @@ public class StockRankingService {
             try {
                 JsonNode responseBody = objectMapper.readTree(response);
                 JsonNode rankings = responseBody.get("output2");
-                System.out.println(responseBody);
                 if (rankings != null) {
                     List<StockRankOverseasTrade> stockList = new ArrayList<>();
                     for (JsonNode ranking : rankings) {

@@ -16,8 +16,12 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
 import java.util.Collections;
@@ -27,9 +31,11 @@ import java.util.Map;
 @Service
 public class ChatBotService {
     private final ChatLogRepository chatLogRepository;
-    private final WebClient webClient;
+    private final RestTemplate restTemplate;
     private final ApiService apiService;
     private final UserService userService;
+
+    private final String openaiApiUrl = "https://api.openai.com/v1/chat/completions";
 
     private static final List<String> API_FUNCTIONS = List.of(
             "주식현재가 조회", "상승률 순위데이터", "하락률 순위데이터",
@@ -41,11 +47,11 @@ public class ChatBotService {
 
     @Autowired
     public ChatBotService(ChatLogRepository chatLogRepository,
-                          WebClient.Builder webClientBuilder,
+                          RestTemplate restTemplate,
                           ApiService apiService,
                           UserService userService) {
         this.chatLogRepository = chatLogRepository;
-        this.webClient = webClientBuilder.baseUrl("https://api.openai.com/v1").build();
+        this.restTemplate = restTemplate;
         this.apiService = apiService;
         this.userService = userService;
     }
@@ -111,16 +117,34 @@ public class ChatBotService {
                 "gpt-3.5-turbo",
                 Collections.singletonList(new ChatgptRequestDTO.Message("user", prompt)));
 
-        return webClient.post()
-                .uri("/chat/completions")
-                .header("Authorization", "Bearer " + apiKey)
-                .header("Content-Type", "application/json")
-                .bodyValue(request)
-                .retrieve()
-                .bodyToMono(ChatgptResponseDTO.class)
-                .map(response -> response.getChoices().get(0).getMessage().getContent())
-                .block();
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setBearerAuth(apiKey);
+
+        HttpEntity<ChatgptRequestDTO> entity = new HttpEntity<>(request, headers);
+
+        try {
+            ResponseEntity<ChatgptResponseDTO> response = restTemplate.postForEntity(
+                    openaiApiUrl,
+                    entity,
+                    ChatgptResponseDTO.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                return response.getBody()
+                        .getChoices()
+                        .get(0)
+                        .getMessage()
+                        .getContent();
+            } else {
+                return "응답 실패: " + response.getStatusCode();
+            }
+
+        } catch (Exception e) {
+            return "요청 실패: " + e.getMessage();
+        }
     }
+
 
     public Slice<ChatLog> getChatLog(String userName, int size, Long lastId) {
         Pageable pageable = PageRequest.of(0, size, Sort.by(Sort.Order.desc("date"), Sort.Order.desc("id")));

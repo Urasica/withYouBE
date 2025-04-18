@@ -1,30 +1,37 @@
 import FinanceDataReader as fdr
-from concurrent.futures import ThreadPoolExecutor, as_completed
 import math
-from tqdm import tqdm
-import logging
 import time
+import random
+import logging
+import signal
+import sys
+import multiprocessing
+
+# 시그널 핸들링 (Docker 종료 시 등)
+def graceful_exit(signum, frame):
+    logger.warning(f"프로세스 종료 시그널 감지 (signal {signum}). 종료 중...")
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, graceful_exit)
+signal.signal(signal.SIGTERM, graceful_exit)
 
 # 로깅 설정
 logging.basicConfig(
-    filename='stock_score.log',
-    filemode='w',  # 매 실행마다 로그 덮어쓰기
+    filename='deviation.log',
+    filemode='w',
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s'
 )
-logger = logging.getLogger(__name__)
+logger = logging.getLogger()
 
-# 나스닥 종목 리스트 가져오기
-df_nasdaq = fdr.StockListing("NASDAQ")
-symbols = df_nasdaq['Symbol'].tolist()
-
-# 종목 점수 계산 함수
-def get_stock_score(symbol):
+# 점수 계산 함수 (서브프로세스에서 실행)
+def worker(symbol, return_dict):
     try:
-        time.sleep(random.uniform(0.1, 0.2))
         df = fdr.DataReader(symbol, '2025-04-01')
         if len(df) < 2:
-            return None
+            return_dict['status'] = 'warning'
+            return_dict['message'] = "데이터 부족"
+            return
 
         latest = df.iloc[-1]
         open_price = latest['Open']
@@ -32,7 +39,7 @@ def get_stock_score(symbol):
         high = latest['High']
         low = latest['Low']
         volume = latest['Volume']
-        adj_close = latest['Adj Close']
+        adj_close = latest.get('Adj Close', close_price)
 
         change = (close_price - open_price) / open_price
         close_strength = (close_price - low) / (high - low) if high != low else 0.5
@@ -47,49 +54,59 @@ def get_stock_score(symbol):
             0.2 * log_volume / 15 +
             0.1 * adj_ratio
         )
-        return round(score, 4)
+        return_dict['status'] = 'success'
+        return_dict['score'] = round(score, 4)
 
     except Exception as e:
-        logger.error(f"{symbol}: 예외 발생 - {e}")
+        return_dict['status'] = 'error'
+        return_dict['message'] = str(e)
+
+# 점수 요청 처리
+def get_score_with_timeout(symbol, index):
+    logger.info(f"[{index}] {symbol}: 요청 시작")
+    time.sleep(random.uniform(0.2, 0.3))
+
+    manager = multiprocessing.Manager()
+    return_dict = manager.dict()
+
+    p = multiprocessing.Process(target=worker, args=(symbol, return_dict))
+    p.start()
+    p.join(timeout=3)
+
+    if p.is_alive():
+        p.terminate()
+        p.join()
+        logger.warning(f"[{index}] {symbol}: 타임아웃 발생 - 프로세스 강제 종료")
         return None
 
-# 배치 단위 설정
-BATCH_SIZE = 100
-results = {}
+    status = return_dict.get("status")
+    if status == 'success':
+        score = return_dict.get("score")
+        logger.info(f"[{index}] {symbol}: 점수 계산 완료 = {score}")
+        return score
+    elif status == 'warning':
+        logger.warning(f"[{index}] {symbol}: {return_dict.get('message')}")
+    elif status == 'error':
+        logger.error(f"[{index}] {symbol}: 예외 발생 - {return_dict.get('message')}")
+    return None
 
-for i in range(0, len(symbols), BATCH_SIZE):
-    batch = symbols[i:i + BATCH_SIZE]
-    logger.info(f"\n=== 배치 {i // BATCH_SIZE + 1} 시작: 총 {len(batch)}개 ===")
+# 실행 시작
+if __name__ == '__main__':
+    df_nasdaq = fdr.StockListing("NASDAQ")
+    symbols = df_nasdaq['Symbol'].tolist()
 
-    with tqdm(total=len(batch), desc=f"배치 처리 중 ({i // BATCH_SIZE + 1})") as pbar:
-        with ThreadPoolExecutor(max_workers=3) as executor:
-            futures = {executor.submit(get_stock_score, symbol): symbol for symbol in batch}
-            completed_count = 0
+    results = {}
 
-            try:
-                for future in as_completed(futures, timeout=90):  # 배치당 최대 대기 시간
-                    symbol = futures[future]
-                    try:
-                        score = future.result(timeout=5)
-                        if score is not None:
-                            results[symbol] = score
-                            logger.info(f"{symbol}: 점수 계산 완료 = {score}")
-                        else:
-                            logger.warning(f"{symbol}: 점수 없음")
-                    except Exception as e:
-                        logger.warning(f"{symbol}: 작업 실패 - {e}")
-                    finally:
-                        completed_count += 1
-                        pbar.update(1)
+    for idx, symbol in enumerate(symbols):
+        # 100건마다 잠시 대기
+        if idx > 0 and idx % 100 == 0:
+            logger.info(f"\n=== 요청 {idx}건 완료. 5초 대기 중... ===\n")
+            time.sleep(5)
 
-            except Exception as e:
-                logger.error(f"배치 {i // BATCH_SIZE + 1}: 일부 작업 타임아웃 또는 실패 - {e}")
-                # 남은 작업 수만큼 강제로 bar 업데이트
-                pbar.update(len(batch) - completed_count)
+        score = get_score_with_timeout(symbol, idx + 1)
+        if score is not None:
+            results[symbol] = score
 
-    logger.info(f"배치 {i // BATCH_SIZE + 1} 완료. 10초 대기 후 다음 배치로 이동합니다.")
-    time.sleep(10)
-
-# 최종 결과 출력
-for symbol, score in sorted(results.items(), key=lambda x: x[1], reverse=True):
-    print(f"{symbol} {score:.4f}")
+    # 결과 출력
+    for symbol, score in sorted(results.items(), key=lambda x: x[1], reverse=True):
+        print(f"{symbol} {score:.4f}")

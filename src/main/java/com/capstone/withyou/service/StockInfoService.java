@@ -1,17 +1,13 @@
 package com.capstone.withyou.service;
 
-import com.capstone.withyou.Manager.AccessTokenManager;
 import com.capstone.withyou.dao.StockInfo;
 import com.capstone.withyou.dto.StockInfoDTO;
 import com.capstone.withyou.repository.StockInfoRepository;
+import com.capstone.withyou.utils.StockApiClient;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import reactor.core.publisher.Mono;
 
 import java.time.LocalDateTime;
 
@@ -19,39 +15,15 @@ import java.time.LocalDateTime;
 @Service
 public class StockInfoService {
     private final StockInfoRepository stockInfoRepository;
-    private final AccessTokenManager tokenManager;
-    private final WebClient webClient;
     private final ObjectMapper objectMapper;
-
-    @Value("${api.kis.appkey}")
-    private String appKey;
-
-    @Value("${api.kis.appsecret}")
-    private String appSecret;
+    private final StockApiClient stockApiClient;
 
     public StockInfoService(StockInfoRepository stockInfoRepository,
-                            AccessTokenManager tokenManager,
-                            WebClient webClient,
+                            StockApiClient stockApiClient,
                             ObjectMapper objectMapper) {
         this.stockInfoRepository = stockInfoRepository;
-        this.tokenManager = tokenManager;
-        this.webClient = webClient;
         this.objectMapper = objectMapper;
-    }
-
-    private Mono<String> fetchStockData(String url, String tradeCode) {
-        return webClient.get()
-                .uri(url)
-                .headers(headers -> {
-                    headers.setContentType(MediaType.APPLICATION_JSON);
-                    headers.set("Authorization", "Bearer " + tokenManager.getAccessToken());
-                    headers.set("appkey", appKey);
-                    headers.set("appsecret", appSecret);
-                    headers.set("tr_id", tradeCode);
-                    headers.set("custtype", "P");
-                })
-                .retrieve()
-                .bodyToMono(String.class);
+        this.stockApiClient = stockApiClient;
     }
 
     public StockInfoDTO getDomesticStockInfo(String stockCode) {
@@ -69,7 +41,7 @@ public class StockInfoService {
                 + "&FID_COND_MRKT_DIV_CODE=J";
 
 
-        String response = fetchStockData(url, "FHKST01010100").block();
+        String response = stockApiClient.getData(url, "FHKST01010100");
 
         try {
             JsonNode rootNode = objectMapper.readTree(response);
@@ -122,7 +94,7 @@ public class StockInfoService {
                 + "&EXCD=NAS"
                 + "&SYMB=" + stockCode;
 
-        String response = fetchStockData(url, "HHDFS76200200").block();
+        String response = stockApiClient.getData(url, "HHDFS76200200");
 
         try {
             JsonNode rootNode = objectMapper.readTree(response);

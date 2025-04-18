@@ -8,7 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.Duration;
 
@@ -16,20 +16,11 @@ import java.time.Duration;
 @RequiredArgsConstructor
 public class ApiClientFactory {
 
-    private final WebClient.Builder builder;
-
     @Value("${api.kis.appkey}")
     private String appKey;
 
     @Value("${api.kis.appsecret}")
     private String appSecret;
-
-    @Bean
-    public WebClient webClient() {
-        return builder
-                .baseUrl("https://openapi.koreainvestment.com:9443")
-                .build();
-    }
 
     @Bean
     public RateLimiter stockApiRateLimiter() {
@@ -44,10 +35,15 @@ public class ApiClientFactory {
 
     @Bean
     public StockApiClient stockApiClient(
-            WebClient webClient,
+            RestTemplate restTemplate,
             RateLimiter stockApiRateLimiter,
             AccessTokenManager accessTokenManager) {
 
-        return new StockApiClient(webClient, stockApiRateLimiter, accessTokenManager, appKey, appSecret);
+        return new StockApiClient(restTemplate, stockApiRateLimiter, accessTokenManager, appKey, appSecret);
+    }
+
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 }
