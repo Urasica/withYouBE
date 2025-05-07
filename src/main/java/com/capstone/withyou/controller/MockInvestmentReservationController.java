@@ -1,6 +1,5 @@
 package com.capstone.withyou.controller;
 
-import com.capstone.withyou.dao.UserReserveHistory;
 import com.capstone.withyou.dto.StockReserveRequestDTO;
 import com.capstone.withyou.dto.UserReserveHistoryDTO;
 import com.capstone.withyou.service.MockInvestmentReservationService;

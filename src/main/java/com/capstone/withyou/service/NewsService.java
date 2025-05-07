@@ -3,7 +3,7 @@ package com.capstone.withyou.service;
 import com.capstone.withyou.dao.News;
 import com.capstone.withyou.dao.StockPrediction;
 import com.capstone.withyou.dto.NewsDTO;
-import com.capstone.withyou.dto.StockPredictionDTO;
+import com.capstone.withyou.dto.StockPredictionDTO;;
 import com.capstone.withyou.repository.NewsRepository;
 import com.capstone.withyou.repository.StockPredictionRepository;
 import lombok.AllArgsConstructor;
@@ -48,6 +48,7 @@ public class NewsService {
     private final NewsRepository newsRepository;
     private final StockPredictionRepository stockPredictionRepository;
     private final ChatGptService chatGptService;
+    private final UserInfoService userInfoService;
 
     @Getter @Setter
     @AllArgsConstructor
@@ -74,6 +75,29 @@ public class NewsService {
 
         updateNewsCache(stockName, newsList, prediction);
         return convertToDTO(newsRepository.findByStockName(stockName));
+    }
+
+    // 유저 보유 주식에서 랜덤 3개 종목 골라서 조회
+    public List<NewsDTO> getUserStockNews(String userId, String category) {
+        List<String> stocks = userInfoService.getUserStockNames(userId);
+        List<NewsDTO> allNews = new ArrayList<>();
+
+        List<String> selectedStocks;
+        if (stocks.size() > 3) {
+            Collections.shuffle(stocks);
+            selectedStocks = stocks.subList(0, 3);
+        } else {
+            selectedStocks = stocks;
+        }
+
+        for (String stock : selectedStocks) {
+            List<NewsDTO> stockNews = getNews(stock, category, 1);
+
+            // 상위 3개 뉴스 추가
+            int limit = Math.min(stockNews.size(), 3);
+            allNews.addAll(stockNews.subList(0, limit));
+        }
+        return allNews;
     }
 
     // 주식 예측 결과 조회
