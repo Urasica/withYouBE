@@ -63,10 +63,11 @@ public class UserInfoService {
 
         for (User user : users) {
             UserProfitDTO dto = new UserProfitDTO();
-            dto.setUserId(user.getUserId());
+            dto.setUserId(user.getUserId());;
 
-            UserInfoDTO userInfo = getUserInfo(user.getUserId());
-            dto.setTotalProfit(userInfo.getTotalProfitRate());
+            Double rate = user.getTotalProfitRate();
+            dto.setTotalProfit(rate != null ? rate : 0.0);
+
             profits.add(dto);
         }
 
@@ -79,6 +80,7 @@ public class UserInfoService {
     public void setProfitGoal(String userId, Double profit) {
         User user = getUser(userId);
         user.setProfitGoal(profit);
+        userRepository.save(user);
     }
 
     // 목표 수익 달성률 조회
@@ -113,6 +115,13 @@ public class UserInfoService {
         userInfoDTO.setTotalProfitRate(calculateProfitRate(totalPurchase, totalProfit)); //수익률
     }
 
+    // 수익률 저장
+    private void saveTotalProfitRate(String userId, Double profit) {
+        User user = getUser(userId);
+        user.setTotalProfitRate(profit);
+        userRepository.save(user);
+    }
+
     // 수익률 계산
     private Double calculateProfitRate(Double base, Double profit) {
         if (base == 0) return 0.0;
@@ -131,6 +140,8 @@ public class UserInfoService {
         dto.setStocks(stockDTOs);
 
         calculateUserStockInfo(dto);
+        saveTotalProfitRate(user.getUserId(), dto.getTotalProfitRate());
+
         return dto;
     }
 

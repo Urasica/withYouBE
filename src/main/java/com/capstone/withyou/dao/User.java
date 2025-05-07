@@ -15,7 +15,7 @@ public class User {
     private String password;
 
     private Double balance;
-
+    private Double totalProfitRate;
     private Double profitGoal;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
