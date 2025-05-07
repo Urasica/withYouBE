@@ -29,6 +29,15 @@ public class NewsController {
         return ResponseEntity.ok(news);
     }
 
+    // 사용자 종목별 대표 뉴스 조회
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<List<NewsDTO>> getUserStockNews(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "주식 주가") String category) {
+        List<NewsDTO> newsList = newsService.getUserStockNews(userId, category);
+        return ResponseEntity.ok(newsList);
+    }
+
     // 예측 결과 조회
     @GetMapping("/{stockName}/prediction")
     public ResponseEntity<StockPredictionDTO> getPrediction(@PathVariable String stockName){

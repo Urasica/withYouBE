@@ -16,6 +16,8 @@ public class User {
 
     private Double balance;
 
+    private Double profitGoal;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     private List<UserStock> stocks;
 

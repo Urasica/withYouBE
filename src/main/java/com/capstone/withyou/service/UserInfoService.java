@@ -3,6 +3,7 @@ package com.capstone.withyou.service;
 import com.capstone.withyou.dao.User;
 import com.capstone.withyou.dao.UserStock;
 import com.capstone.withyou.dto.UserInfoDTO;
+import com.capstone.withyou.dto.UserProfitDTO;
 import com.capstone.withyou.dto.UserStockDTO;
 import com.capstone.withyou.exception.NotFoundException;
 import com.capstone.withyou.repository.UserRepository;
@@ -11,6 +12,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -25,28 +27,72 @@ public class UserInfoService {
 
     // 유저 정보 불러오기
     public UserInfoDTO getUserInfo(String userId) {
-        User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
+        User user = getUser(userId);
         return convertToUserInfoDTO(user);
+    }
+
+    // 유저 종목 이름 리스트 조회
+    public List<String> getUserStockNames(String userId) {
+        User user = getUser(userId);
+        return userStockRepository.findByUser(user).stream()
+                .map(UserStock::getStockName)
+                .collect(Collectors.toList());
     }
 
     // 유저 보유 금액 수정
     public void updateUserBalance(String userId, Double balance) {
-        User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
+        User user = getUser(userId);
         user.setBalance(balance);
         userRepository.save(user);
     }
 
     // 유저 보유 주식 초기화
     public void resetUserStock(String userId) {
-        User user = userRepository.findByUserId(userId)
-                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
+        User user = getUser(userId);
 
         // 모든 주식 정보 삭제
         userStockRepository.deleteAllByUser(user);
         user.setBalance(0.0);
         userRepository.save(user);
+    }
+
+    // 모든 유저 수익률 리스트 조회
+    public List<UserProfitDTO> getUserProfits(){
+        List<User> users = userRepository.findAll();
+        List<UserProfitDTO> profits = new ArrayList<>();
+
+        for (User user : users) {
+            UserProfitDTO dto = new UserProfitDTO();
+            dto.setUserId(user.getUserId());
+
+            UserInfoDTO userInfo = getUserInfo(user.getUserId());
+            dto.setTotalProfit(userInfo.getTotalProfitRate());
+            profits.add(dto);
+        }
+
+        // 내림차순 정렬
+        profits.sort((a, b) -> Double.compare(b.getTotalProfit(), a.getTotalProfit()));
+        return profits;
+    }
+
+    // 유저 수익률 목표 설정
+    public void setProfitGoal(String userId, Double profit) {
+        User user = getUser(userId);
+        user.setProfitGoal(profit);
+    }
+
+    // 목표 수익 달성률 조회
+    public Double getProfitGoalAchievementRate(String userId) {
+        UserInfoDTO userInfo = getUserInfo(userId);
+        Double profitGoal = userInfo.getProfitGoal();
+        Double currentProfitRate = userInfo.getTotalProfitRate();
+        double rate = (currentProfitRate / profitGoal) * 100;
+        return Math.round(rate * 10.0) / 10.0;
+    }
+
+    private User getUser(String userId) {
+        return userRepository.findByUserId(userId)
+                .orElseThrow(() -> new NotFoundException("해당 유저를 찾을 수 없습니다."));
     }
 
     // 유저 보유 주식 총 매입, 총 수익, 총 평가, 수익률 계산
@@ -79,6 +125,7 @@ public class UserInfoService {
         UserInfoDTO dto = new UserInfoDTO();
         dto.setUserId(user.getUserId());
         dto.setBalance(user.getBalance());
+        dto.setProfitGoal(user.getProfitGoal());
 
         List<UserStockDTO> stockDTOs = convertToUserStockDTOList(user);
         dto.setStocks(stockDTOs);
@@ -120,7 +167,6 @@ public class UserInfoService {
         dto.setProfitAmount(profitAmount); //손익 금액
 
         dto.setProfitRate(calculateProfitRate(averagePurchasePrice*userStock.getQuantity(), profitAmount)); //손익률
-
         return dto;
     }
 }
