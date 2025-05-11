@@ -20,4 +20,6 @@ public class Stock {
 
     @Column(length = 300)
     private String category;
+
+    private Double deviation;
 }

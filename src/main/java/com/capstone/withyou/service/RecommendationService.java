@@ -9,10 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -30,7 +27,7 @@ public class RecommendationService {
         List<Stock> nasdaqStocks = stockRepository.findNASDAQStocks();
 
         try {
-            // 모든 주식의 편차 계산
+            // 모든 주식 수치 계산
             Map<String, Double> deviations = pythonScriptService.calculateDeviations();
 
             // 카테고리 업데이트
@@ -39,6 +36,14 @@ public class RecommendationService {
 
                 if (deviation == null || Double.isNaN(deviation)) {
                     continue; // 편차 계산 실패 시 건너뛰기
+                }
+
+                Optional<Stock> optionalStock = stockRepository.findByStockCode(stock.getStockCode());
+
+                if (optionalStock.isPresent()) {
+                    Stock updateStock = optionalStock.get();
+                    updateStock.setDeviation(Math.round(deviation * 100.0) / 100.0);
+                    stockRepository.save(updateStock);
                 }
 
                 // 카테고리 가져오기 또는 새로 생성
