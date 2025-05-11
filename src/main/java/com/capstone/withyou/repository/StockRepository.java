@@ -1,6 +1,7 @@
 package com.capstone.withyou.repository;
 
 import com.capstone.withyou.dao.Stock;
+import com.capstone.withyou.dto.StockDTO;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
@@ -13,5 +14,7 @@ public interface StockRepository extends JpaRepository<Stock, String> {
 
     @Query(value = "SELECT * FROM stock s WHERE s.stock_code REGEXP '^[A-Za-z]' ", nativeQuery = true)
     List<Stock> findNASDAQStocks();
+
+    List<Stock> findByCategory(String category);
 
 }

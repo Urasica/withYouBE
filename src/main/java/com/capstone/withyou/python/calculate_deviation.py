@@ -4,6 +4,7 @@ import math
 from tqdm import tqdm
 import logging
 import time
+import random
 
 # 로깅 설정
 logging.basicConfig(
@@ -22,7 +23,7 @@ symbols = df_nasdaq['Symbol'].tolist()
 def get_stock_score(symbol):
     try:
         time.sleep(random.uniform(0.1, 0.2))
-        df = fdr.DataReader(symbol, '2025-04-01')
+        df = fdr.DataReader(symbol, '2025-05-01')
         if len(df) < 2:
             return None
 

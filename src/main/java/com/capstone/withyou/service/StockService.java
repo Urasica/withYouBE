@@ -3,6 +3,7 @@ package com.capstone.withyou.service;
 import com.capstone.withyou.dao.ExchangeRate;
 import com.capstone.withyou.dao.Stock;
 import com.capstone.withyou.dto.StockCurPriceDTO;
+import com.capstone.withyou.dto.StockDTO;
 import com.capstone.withyou.exception.NotFoundException;
 import com.capstone.withyou.repository.ExchangeRateRepository;
 import com.capstone.withyou.repository.StockRepository;
@@ -79,5 +80,19 @@ public class StockService {
             throw new NotFoundException("해당 주식을 찾을 수 없습니다.");
         }
         return currentPrice;
+    }
+
+    // 카테고리별 주식 리스트 조회
+    public List<StockDTO> getCategoryStocks(String category) {
+        return stockRepository.findByCategory(category).stream()
+                .filter(stock -> stock.getDeviation() != null)
+                .map(stock -> {
+                    StockDTO dto = new StockDTO();
+                    dto.setCategoryName(stock.getCategory());
+                    dto.setStockName(stock.getStockName());
+                    dto.setDeviation(stock.getDeviation());
+                    return dto;
+                })
+                .collect(Collectors.toList());
     }
 }

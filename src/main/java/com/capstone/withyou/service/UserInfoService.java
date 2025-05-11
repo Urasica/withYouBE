@@ -8,12 +8,14 @@ import com.capstone.withyou.dto.UserStockDTO;
 import com.capstone.withyou.exception.NotFoundException;
 import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.UserStockRepository;
+import io.github.resilience4j.spring6.micrometer.configure.TimerAspect;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.*;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
@@ -24,6 +26,7 @@ public class UserInfoService {
     private final UserRepository userRepository;
     private final UserStockRepository userStockRepository;
     private final StockService stockService;
+    private final TimerAspect timerAspect;
 
     // 유저 정보 불러오기
     public UserInfoDTO getUserInfo(String userId) {
@@ -53,6 +56,7 @@ public class UserInfoService {
         // 모든 주식 정보 삭제
         userStockRepository.deleteAllByUser(user);
         user.setBalance(0.0);
+        user.setProfitGoal(0.0);
         userRepository.save(user);
     }
 
@@ -164,11 +168,26 @@ public class UserInfoService {
         dto.setAveragePurchasePrice(averagePurchasePrice);
 
         // 실시간 주식 정보 설정(현재 주가, 총 금액, 손익 금액, 손익률)
-        Double currentPrice;
-        if (stockService.getStockName(userStock.getStockCode()) != null)
-            currentPrice = stockService.getCurrentPrice(userStock.getStockCode());
-        else
-            currentPrice = 0.0;
+        ExecutorService executor = Executors.newSingleThreadExecutor();
+
+        Double currentPrice =0.0;
+
+        try {
+            currentPrice = executor.submit(() -> {
+                if (stockService.getStockName(userStock.getStockCode()) != null) {
+                    return stockService.getCurrentPrice(userStock.getStockCode());
+                } else {
+                    return 0.0;
+                }
+            }).get(10, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            dto.setMessage("주가 요청에 실패했습니다. (타임아웃)");
+        } catch (Exception e) {
+            dto.setMessage("주가 요청에 실패했습니다.");
+        } finally {
+            executor.shutdownNow();
+        }
+
         dto.setCurrentPrice(currentPrice); //현재 주가
 
         double totalAmount = currentPrice * userStock.getQuantity();

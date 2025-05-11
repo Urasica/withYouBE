@@ -17,4 +17,5 @@ public class UserStockDTO {
     private Double profitRate; //손익률
     private Double totalAmount; //총 금액(현재 주가 * 주식 수)
     private int quantity; //주식 수
+    private String message;
 }
