@@ -8,9 +8,9 @@ import com.capstone.withyou.dto.UserStockDTO;
 import com.capstone.withyou.exception.NotFoundException;
 import com.capstone.withyou.repository.UserRepository;
 import com.capstone.withyou.repository.UserStockRepository;
-import io.github.resilience4j.spring6.micrometer.configure.TimerAspect;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -21,12 +21,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Service
 @Transactional
+@Slf4j
 public class UserInfoService {
 
     private final UserRepository userRepository;
     private final UserStockRepository userStockRepository;
     private final StockService stockService;
-    private final TimerAspect timerAspect;
 
     // 유저 정보 불러오기
     public UserInfoDTO getUserInfo(String userId) {
@@ -67,7 +67,7 @@ public class UserInfoService {
 
         for (User user : users) {
             UserProfitDTO dto = new UserProfitDTO();
-            dto.setUserId(user.getUserId());;
+            dto.setUserId(user.getUserId());
 
             Double rate = user.getTotalProfitRate();
             dto.setTotalProfit(rate != null ? rate : 0.0);
@@ -167,36 +167,46 @@ public class UserInfoService {
         Double averagePurchasePrice = userStock.getAveragePurchasePrice();
         dto.setAveragePurchasePrice(averagePurchasePrice);
 
-        // 실시간 주식 정보 설정(현재 주가, 총 금액, 손익 금액, 손익률)
-        ExecutorService executor = Executors.newSingleThreadExecutor();
+        // 실시간 주가 요청
+        Double currentPrice = 0.0;
+        boolean success = false;
 
-        Double currentPrice =0.0;
+        for (int attempt = 1; attempt <= 2 && !success; attempt++) {
+            try {
+                //타임아웃
+                long startTime = System.currentTimeMillis();
 
-        try {
-            currentPrice = executor.submit(() -> {
+                // 직접 주가 조회 (순차 처리)
                 if (stockService.getStockName(userStock.getStockCode()) != null) {
-                    return stockService.getCurrentPrice(userStock.getStockCode());
+                    currentPrice = stockService.getCurrentPrice(userStock.getStockCode());
                 } else {
-                    return 0.0;
+                    currentPrice = 0.0;
                 }
-            }).get(10, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            dto.setMessage("주가 요청에 실패했습니다. (타임아웃)");
-        } catch (Exception e) {
-            dto.setMessage("주가 요청에 실패했습니다.");
-        } finally {
-            executor.shutdownNow();
+
+                long elapsed = System.currentTimeMillis() - startTime;
+                if (elapsed > 3000) {
+                    throw new TimeoutException();
+                }
+
+                success = true;
+
+            } catch (TimeoutException e) {
+                if (attempt == 2) dto.setMessage("주가 요청에 실패했습니다. (타임아웃)");
+            } catch (Exception e) {
+                if (attempt == 2) dto.setMessage("주가 요청에 실패했습니다.");
+            }
         }
 
-        dto.setCurrentPrice(currentPrice); //현재 주가
+        dto.setCurrentPrice(currentPrice); //현재가
 
         double totalAmount = currentPrice * userStock.getQuantity();
         dto.setTotalAmount(totalAmount); //총 금액
 
         double profitAmount = totalAmount - (averagePurchasePrice * userStock.getQuantity());
-        dto.setProfitAmount(profitAmount); //손익 금액
+        dto.setProfitAmount(profitAmount); //총 수익 금액
 
-        dto.setProfitRate(calculateProfitRate(averagePurchasePrice*userStock.getQuantity(), profitAmount)); //손익률
+        dto.setProfitRate(calculateProfitRate(averagePurchasePrice * userStock.getQuantity(), profitAmount)); //총 수익률
+
         return dto;
     }
 }

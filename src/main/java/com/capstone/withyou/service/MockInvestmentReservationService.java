@@ -15,14 +15,12 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Service
 public class MockInvestmentReservationService {
 
-    private final MockInvestmentService mockInvestmentService;
     private final StockService stockService;
     private final UserRepository userRepository;
     private final UserReserveHistoryRepository userReserveHistoryRepository;
