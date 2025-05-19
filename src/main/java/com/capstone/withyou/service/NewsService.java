@@ -71,6 +71,14 @@ public class NewsService {
 
         // 그렇지 않으면 기존 뉴스 데이터 삭제 + 새로운 뉴스 데이터 가져와서 DB에 업데이트
         List<NewsDTO> newsList = fetchNewsFromNaver(stockName, category, page); // 뉴스 정보
+        newsList = newsList.stream()
+                .filter(news -> news.getTitle() != null &&
+                        news.getLink() != null &&
+                        news.getSummary() != null &&
+                        news.getPress() != null &&
+                        news.getDate() != null &&
+                        news.getImageUrl() != null)
+                .collect(Collectors.toList()); // 뉴스 정보중 null 아닌것만 필터링
         String prediction = chatGptService.predictStockResult(stockName, newsList); // 예측 결과
 
         updateNewsCache(stockName, newsList, prediction);
