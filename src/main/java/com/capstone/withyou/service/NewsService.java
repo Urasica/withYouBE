@@ -76,9 +76,8 @@ public class NewsService {
                         news.getLink() != null &&
                         news.getSummary() != null &&
                         news.getPress() != null &&
-                        news.getDate() != null &&
-                        news.getImageUrl() != null)
-                .collect(Collectors.toList()); // 뉴스 정보중 null 아닌것만 필터링
+                        news.getDate() != null)
+                .collect(Collectors.toList());
         String prediction = chatGptService.predictStockResult(stockName, newsList); // 예측 결과
 
         updateNewsCache(stockName, newsList, prediction);
