@@ -49,7 +49,7 @@
 
 ---
 
-## 기술 스택
+## 적용 기술
 
 ### 백엔드 (Spring Boot)
 - Java, Spring Boot (REST API 서버 구성)  
@@ -74,23 +74,22 @@
 
 ## 시스템 아키텍처
 
-![시스템 구성도]  
 ![alt text](App.png)
 
-- **Spring Boot** 서버는 REST 및 WebSocket API 제공  
-- **MariaDB**는 사용자 정보, 거래 기록, 종목 정보 저장  
-- **Redis**는 주식 캐시, 예약 거래 큐 처리 등에 사용  
-- **Docker Compose** 기반으로 전체 백엔드 서비스 통합  
+- **Spring Boot**: REST API 및 WebSocket API 제공  
+- **MariaDB**: 사용자 정보, 거래 기록, 종목 정보 저장  
+- **Redis**: 주식 캐시, 예약 거래 큐 처리 등에 사용  
+- **Docker** 기반으로 전체 백엔드 서비스 통합  
 - Flutter 앱과 웹은 각각 서버와 통신하여 기능 실행  
 
 ---
 
 ## 기능 시연
 ### 프론트 엔드 GitHub 링크
- [링크](#) (추가 예정)
+ [프론트 깃허브 링크](https://github.com/otaeyean/Capstone)
 
 ### 📽 시연 영상
- [시연 영상 링크](#) (추가 예정)
+ [시연 영상 링크](https://youtu.be/MdASFg5RunY?si=fSKkqbFd2yMPpxcE)
 
 ### 주요 기능 GIF
 - [추가 예정] 모의투자 인터페이스  
