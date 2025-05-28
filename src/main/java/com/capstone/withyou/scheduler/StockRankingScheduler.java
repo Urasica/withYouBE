@@ -19,7 +19,7 @@ public class StockRankingScheduler {
         this.stockRankingService = stockRankingService;
     }
 
-    @Scheduled(fixedRate = 3600000) // 1시간마다 실행
+    @Scheduled(fixedRate = 180000) // 5분마다 실행
     public void scheduleDailyStockRanking() {
         enqueueTask(stockRankingService::fetchAndSaveDailyStockRankings);
     }
